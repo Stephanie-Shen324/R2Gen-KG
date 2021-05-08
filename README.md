@@ -1,4 +1,4 @@
-# R2Gen
+# Below is the README for original R2Gen
 
 This is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
 
