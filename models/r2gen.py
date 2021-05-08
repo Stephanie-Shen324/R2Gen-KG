@@ -27,12 +27,13 @@ class R2GenModel(nn.Module):
         params = sum([np.prod(p.size()) for p in model_parameters])
         return super().__str__() + '\nTrainable parameters: {}'.format(params)
 
-    def forward_iu_xray(self, images, targets=None, mode='train', feed_mode = self.args.feed_mode): 
+    def forward_iu_xray(self, images, targets=None, mode='train'): 
         # att_feats torch.Size([16, 49, 2048])
         # node_feats torch.Size([16, 21, 2048])
         # fc_feats torch.Size([16, 2048])
         att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
         
+        feed_mode = self.args.feed_mode
         # feed both CNN features & graph embedded features
         if feed_mode == 'both':
             input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
