@@ -20,37 +20,34 @@ class R2GenModel(nn.Module):
 
         #edit
         self.submodel = submodel
+        
 
     def __str__(self):
         model_parameters = filter(lambda p: p.requires_grad, self.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
         return super().__str__() + '\nTrainable parameters: {}'.format(params)
 
-    def forward_iu_xray(self, images, targets=None, mode='train'):
-
-        # att_feats_0, fc_feats_0 = self.visual_extractor(images[:, 0])
-        # att_feats_1, fc_feats_1 = self.visual_extractor(images[:, 1])
-
-        # print('att_feats_0',att_feats_0.shape)
-        # print('fc_feats_0',fc_feats_0.shape)
-        #att_feats0 ([16, 49, 1024])
-        # fc_feats0 torch.Size([16, 1024])
-        att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
-
-        # feed both
-        att_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
-
-        # raise Exception('lol')
-
-        # fc_feats = torch.cat((fc_feats_0, fc_feats_1), dim=1)
-        # att_feats = torch.cat((att_feats_0, att_feats_1), dim=1)
-        # att_feats ([16, 98, 1024])
+    def forward_iu_xray(self, images, targets=None, mode='train', feed_mode = self.args.feed_mode): 
+        # att_feats torch.Size([16, 49, 2048])
+        # node_feats torch.Size([16, 21, 2048])
         # fc_feats torch.Size([16, 2048])
+        att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
+        
+        # feed both CNN features & graph embedded features
+        if feed_mode == 'both:
+            input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
+        # feed only CNN features 
+        elif feed_mode == 'cnn_only':
+            input_feats = att_feats
+        # feed only graph embedded features
+        elif feed_mode == 'gcn_only':
+            input_feats = node_feats
+
 
         if mode == 'train':
-            output = self.encoder_decoder(fc_feats, att_feats, targets, mode='forward')
+            output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
         elif mode == 'sample':
-            output, _ = self.encoder_decoder(fc_feats, att_feats, mode='sample')
+            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample')
         else:
             raise ValueError
         return output
