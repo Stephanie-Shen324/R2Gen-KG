@@ -34,7 +34,7 @@ class R2GenModel(nn.Module):
         att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
         
         # feed both CNN features & graph embedded features
-        if feed_mode == 'both:
+        if feed_mode == 'both':
             input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
         # feed only CNN features 
         elif feed_mode == 'cnn_only':
