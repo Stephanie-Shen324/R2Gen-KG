@@ -81,14 +81,13 @@ def parse_agrs():
     parser.add_argument('--gamma', type=float, default=0.1, help='the gamma of the learning rate scheduler.')
 
     # Others
-    parser.add_argument('--seed', type=int, default=9233, help='.')
+    parser.add_argument('--seed', type=int, default=9233, help='seed')
     parser.add_argument('--resume', type=str, help='whether to resume the training from existing checkpoints.')
-    
-    #edit
+   
     #KG
-    parser.add_argument('--pretrained', type=str, default='models/gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth')
-    parser.add_argument('--num_classes', type=int, default=20)
-
+    parser.add_argument('--pretrained', type=str, default='models/gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth', help = 'path of pretrained GCN classifier')
+    parser.add_argument('--num_classes', type=int, default=20, help = 'Number of nodes in Knowledge Graph')
+    parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
     
     args = parser.parse_args()
     return args
