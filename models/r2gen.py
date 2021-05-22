@@ -54,8 +54,11 @@ class R2GenModel(nn.Module):
         return output
     #edit
     def forward_mimic_cxr(self, images, targets=None, mode='train'):
-        #if only one image is inputted.
-        att_feats, node_feats, fc_feats = self.submodel(images)
+        if self.args.dataset_name =='mimic_cxr_2images':
+            att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
+        else:
+            #if only one image is inputted.
+            att_feats, node_feats, fc_feats = self.submodel(images)
         
         feed_mode = self.args.feed_mode
         # feed both CNN features & graph embedded features
