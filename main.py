@@ -18,7 +18,7 @@ def parse_agrs():
     parser.add_argument('--ann_path', type=str, default='data/iu_xray/annotation.json', help='the path to the directory containing the data.')
 
     # Data loader settings
-    parser.add_argument('--dataset_name', type=str, default='iu_xray', choices=['iu_xray', 'mimic_cxr'], help='the dataset to be used.')
+    parser.add_argument('--dataset_name', type=str, default='iu_xray', choices=['iu_xray', 'mimic_cxr', 'mimic_cxr_2images], help='the dataset to be used.')
     parser.add_argument('--max_seq_length', type=int, default=60, help='the maximum sequence length of the reports.')
     parser.add_argument('--threshold', type=int, default=3, help='the cut off frequency for the words.')
     parser.add_argument('--num_workers', type=int, default=4, help='the number of workers for dataloader.')
@@ -137,7 +137,7 @@ def main():
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         ], dtype=torch.float,device=device)
-    if args.dataset_name == 'mimic_cxr':
+    if args.dataset_name == 'mimic_cxr' or 'mimic_cxr_2images':
         fw_adj = torch.tensor([
             [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0] ,
             [0.0, 0.0, 0.4561275751719785, 0.1312437281509043, 0.24146207792929056, 0.5508571762992422, 0.1562972606280271, 0.0, 0.33109282796069434, 0.0, 0.7450978096449961, 0.0, 0.09811571952749415, 0.3566126916516296, 0.4550427125255811, 0.0, 0.0, 0.0, 0.0, 0.3675326731479569, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0742334537640819, 0.0, 0.0, 0.04911539003545221] ,
