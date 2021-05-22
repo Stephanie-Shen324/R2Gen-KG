@@ -52,14 +52,26 @@ class R2GenModel(nn.Module):
         else:
             raise ValueError
         return output
-
+    #edit
     def forward_mimic_cxr(self, images, targets=None, mode='train'):
-        att_feats, fc_feats = self.visual_extractor(images)
+        #att_feats, fc_feats = self.visual_extractor(images)
+        att_feats, node_feats, fc_feats = self.submodel(images)
+        
+        feed_mode = self.args.feed_mode
+        # feed both CNN features & graph embedded features
+        if feed_mode == 'both':
+            input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
+        # feed only CNN features 
+        elif feed_mode == 'cnn_only':
+            input_feats = att_feats
+        # feed only graph embedded features
+        elif feed_mode == 'gcn_only':
+            input_feats = node_feats
      
         if mode == 'train':
-            output = self.encoder_decoder(fc_feats, att_feats, targets, mode='forward')
+            output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
         elif mode == 'sample':
-            output, _ = self.encoder_decoder(fc_feats, att_feats, mode='sample')
+            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample')
         else:
             raise ValueError
         return output
