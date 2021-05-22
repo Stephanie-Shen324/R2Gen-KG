@@ -3,7 +3,7 @@
 R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
 KG and pretrained GCN comes from RGMG
 
-If the dataset is 
+If only 1 images of MIMIC-CXR is inputted: make sure to change d_vf to 1024 in run_mimic_cxr.sh
 
 ## Citations
 
