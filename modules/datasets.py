@@ -40,8 +40,29 @@ class IuxrayMultiImageDataset(BaseDataset):
         seq_length = len(report_ids)
         sample = (image_id, image, report_ids, report_masks, seq_length)
         return sample
+    
+class MimiccxrMultiImageDataset(BaseDataset):
+    def __getitem__(self, idx):
+        example = self.examples[idx]
+        image_id = example['id']
+        image_path = example['image_path']
+        image_1 = Image.open(os.path.join(self.image_dir, image_path[0])).convert('RGB')
+        try:
+            image_2 = Image.open(os.path.join(self.image_dir, image_path[1])).convert('RGB')
+        #if this record only have one image, duplicate image1
+        except:
+            image_2 = Image.open(os.path.join(self.image_dir, image_path[0])).convert('RGB')
+        if self.transform is not None:
+            image_1 = self.transform(image_1)
+            image_2 = self.transform(image_2)
+        image = torch.stack((image_1, image_2), 0)
+        report_ids = example['ids']
+        report_masks = example['mask']
+        seq_length = len(report_ids)
+        sample = (image_id, image, report_ids, report_masks, seq_length)
+        return sample
 
-
+    
 class MimiccxrSingleImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
