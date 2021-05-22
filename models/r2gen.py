@@ -54,7 +54,7 @@ class R2GenModel(nn.Module):
         return output
     #edit
     def forward_mimic_cxr(self, images, targets=None, mode='train'):
-        #att_feats, fc_feats = self.visual_extractor(images)
+        #if only one image is inputted.
         att_feats, node_feats, fc_feats = self.submodel(images)
         
         feed_mode = self.args.feed_mode
