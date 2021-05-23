@@ -5,7 +5,7 @@ KG and pretrained GCN comes from RGMG
 
 If 2 images of MIMIC-CXR is inputted: make sure to change d_vf to 2048 and dataset_name as 'mimic_cxr_2images' in run_mimic_cxr.sh
 
-If use BioBert as pretrained Language Models, need to change d_model and rm_d_model to 768, and pretrained_LM to 'biobert'
+If use BioBert as pretrained Language Models, need to change d_model and rm_d_model to 768, and pretrained_LM to 'biobert', and 'pip install pytorch-pretrained-bert'
 
 
 ## Citations
