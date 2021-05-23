@@ -2,10 +2,26 @@
 
 R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
 KG and pretrained GCN comes from RGMG
-
+## Two Images MIMIC-CXR
 If 2 images of MIMIC-CXR is inputted: make sure to change d_vf to 2048 and dataset_name as 'mimic_cxr_2images' in run_mimic_cxr.sh
 
-If use BioBert as pretrained Language Models, need to change d_model and rm_d_model to 768, and pretrained_LM to 'biobert', and 'pip install pytorch-pretrained-bert'
+## Pretrained Language Models
+### None
+default, just nn.Embedding
+
+### Glove-MIMIC
+--pretrained_LM 'glove-mimic'
+
+
+### BioBert
+If use BioBert as pretrained Language Models:
+pip install pytorch-pretrained-bert
+
+need to change in run_iu_xray.sh:
+--d_model 768 \
+--rm_d_model 768 \
+--pretrained_LM 'biobert'
+
 
 
 ## Citations
