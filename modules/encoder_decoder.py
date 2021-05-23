@@ -290,7 +290,7 @@ class PretrainedEmbeddings:
      
 
 class Embeddings(nn.Module):
-    def __init__(self, d_model, vocab):
+    def __init__(self, d_model, vocab, args, R2GenTokenizer):
         super(Embeddings, self).__init__()
         self.lut = nn.Embedding(vocab, d_model)
         if args.pretrained_LM == 'glove-mimic':
@@ -387,7 +387,7 @@ class RelationalMemory(nn.Module):
 
 class EncoderDecoder(AttModel):
 
-    def make_model(self, tgt_vocab):
+    def make_model(self, tgt_vocab, args):
         c = copy.deepcopy
         attn = MultiHeadedAttention(self.num_heads, self.d_model)
         ff = PositionwiseFeedForward(self.d_model, self.d_ff, self.dropout)
@@ -399,7 +399,7 @@ class EncoderDecoder(AttModel):
                 DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model),
                 self.num_layers),
             lambda x: x,
-            nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
+            nn.Sequential(Embeddings(self.d_model, tgt_vocab, args, self.tokenizer), c(position)),
             rm)
         for p in model.parameters():
             if p.dim() > 1:
@@ -420,7 +420,7 @@ class EncoderDecoder(AttModel):
 
         tgt_vocab = self.vocab_size + 1
 
-        self.model = self.make_model(tgt_vocab)
+        self.model = self.make_model(tgt_vocab, args)
         self.logit = nn.Linear(args.d_model, tgt_vocab)
 
     def init_hidden(self, bsz):
