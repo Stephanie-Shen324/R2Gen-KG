@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import copy
 import math
+import gzip
 
 import numpy as np
 import torch
