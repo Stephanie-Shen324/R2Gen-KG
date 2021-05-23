@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .att_model import pack_wrapper, AttModel
+from models.biobert_embedding.biobert_embedding.embedding import BiobertEmbedding
 
 
 def clones(module, N):
