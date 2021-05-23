@@ -1,7 +1,7 @@
 python main.py \
 --image_dir data/mimic_cxr/images/ \
 --ann_path data/mimic_cxr/annotation.json \
---dataset_name mimic_cxr \
+
 --max_seq_length 100 \
 --threshold 10 \
 --batch_size 16 \
@@ -12,4 +12,5 @@ python main.py \
 --pretrained models/mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_e10.pth \
 --d_vf 1024 \
 --num_classes 36 \
+--dataset_name mimic_cxr \
 --seed 456789
