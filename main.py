@@ -89,6 +89,10 @@ def parse_agrs():
     parser.add_argument('--num_classes', type=int, default=20, help = 'Number of nodes in Knowledge Graph')
     parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
     
+    #Pretrained Language Models
+    parser.add_argument('--pretrained_LM', type=str, default = 'none', choices=['none','glove-mimic','biobert','bioalbert'], help = 'The pretrained language model used.')
+    parser.add_argument('--glove_path', type=str, default = 'models/glove_mimic-cxr_train.512.txt.gz', help = 'The path of pretrained language model glove-mimic.')
+    
     args = parser.parse_args()
     return args
 
