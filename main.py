@@ -82,7 +82,7 @@ def parse_agrs():
    
     #KG
     parser.add_argument('--pretrained', type=str, default='models/gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth', help = 'path of pretrained GCN classifier')
-    parser.add_argument('--num_classes', type=int, default=20, help = 'Number of nodes in Knowledge Graph')
+    # parser.add_argument('--num_classes', type=int, default=20, help = 'Number of nodes in Knowledge Graph')
     parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
     parser.add_argument('--kg_option', type = str, default = 'rgmg', choices = ['rgmg', 'vsegcn'], help = 'The knowledge graph used for iuxray dataset')
     
@@ -261,7 +261,9 @@ def main():
     bw_adj = fw_adj.t()
 
     # build model architecture
-    submodel = GCNClassifier(args.num_classes, fw_adj, bw_adj) 
+    #edit removed num_classes from args
+    num_classes = fw_adj.shape[0] - 1
+    submodel = GCNClassifier(num_classes, fw_adj, bw_adj) 
     # submodel.state_dict = torch.load(args.pretrained) 
 
 
