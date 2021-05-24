@@ -10,6 +10,16 @@ Run `bash run_iu_xray.sh` to train a model on the IU X-Ray data.
 
 ### RGMG's KG
 
+link = '1-q0e7oDDIn419KlMTmGTOZWoMqJTUbpV'
+downloaded = drive.CreateFile({'id':link}) 
+downloaded.GetContentFile('gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth')
+**OR**
+
+link = '10J5VwEmyOM9-I_YHyzpJaALRN36o1No4'
+downloaded = drive.CreateFile({'id':link}) 
+downloaded.GetContentFile('gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e80.pth')
+
+
 ### VSEGCN's KG
 
 changes to pretrained gcn download:
