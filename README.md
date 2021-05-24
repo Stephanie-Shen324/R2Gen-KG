@@ -1,13 +1,39 @@
 # README
 
 R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
-KG and pretrained GCN comes from RGMG
-## Two Images MIMIC-CXR
+KG and pretrained GCN comes from RGMG and VSEGCN
+
+
+## Run on IU X-Ray
+
+Run `bash run_iu_xray.sh` to train a model on the IU X-Ray data.
+
+### RGMG's KG
+
+### VSEGCN's KG
+
+changes to pretrained gcn download:
+link = '1Cd_J2-tFVvRE6dMBfyJsYKW_1HPWtlHx'
+downloaded = drive.CreateFile({'id':link}) 
+downloaded.GetContentFile('iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_e180.pth')
+
+changes to 'run_iu_xray.sh'
+--pretrained models/iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_e180.pth \
+
+## Run on MIMIC-CXR
+
+Run `bash run_mimic_cxr.sh` to train a model on the MIMIC-CXR data.
+
+### Two Images MIMIC-CXR
 If 2 images of MIMIC-CXR is inputted, change in run_mimic_cxr.sh: \
 --d_vf 2048 \
 --dataset_name 'mimic_cxr_2images' 
 
-## Pretrained Language Models
+
+
+
+
+## Pretrained Language Models(only tested on iuxray for now)
 ### None
 default, just nn.Embedding
 
@@ -59,10 +85,4 @@ For `IU X-Ray`, you can download the dataset from [here](https://drive.google.co
 
 For `MIMIC-CXR`, you can download the dataset from [here](https://drive.google.com/file/d/1DS6NYirOXQf8qYieSVMvqNwuOlgAbM_E/view?usp=sharing) and then put the files in `data/mimic_cxr`.
 
-## Run on IU X-Ray
 
-Run `bash run_iu_xray.sh` to train a model on the IU X-Ray data.
-
-## Run on MIMIC-CXR
-
-Run `bash run_mimic_cxr.sh` to train a model on the MIMIC-CXR data.
