@@ -1,7 +1,6 @@
 python main.py \
 --image_dir data/mimic_cxr/images/ \
 --ann_path data/mimic_cxr/annotation.json \
-
 --max_seq_length 100 \
 --threshold 10 \
 --batch_size 16 \
