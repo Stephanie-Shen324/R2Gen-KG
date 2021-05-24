@@ -1,6 +1,6 @@
 # README
 
-R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
+R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020. \
 KG and pretrained GCN comes from RGMG and VSEGCN
 
 
@@ -29,6 +29,7 @@ downloaded.GetContentFile('iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_
 
 changes to 'run_iu_xray.sh'
 --pretrained models/iuxray_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_23050521_e180.pth \
+--kg_option 'vsegcn' \
 
 ## Run on MIMIC-CXR
 
