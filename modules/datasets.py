@@ -14,6 +14,7 @@ class BaseDataset(Dataset):
         self.tokenizer = tokenizer
         self.transform = transform
         self.ann = json.loads(open(self.ann_path, 'r').read())
+        self.args = args
 
         self.examples = self.ann[self.split]
         for i in range(len(self.examples)):
