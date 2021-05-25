@@ -5,6 +5,7 @@ import time
 import torch
 import pandas as pd
 from numpy import inf
+import numpy as np
 
 
 class BaseTrainer(object):
@@ -185,12 +186,23 @@ class Trainer(BaseTrainer):
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.test_dataloader = test_dataloader
-
+        self.args = args
+        
     def _train_epoch(self, epoch):
 
         train_loss = 0
         self.model.train()
         for batch_idx, (images_id, images, reports_ids, reports_masks) in enumerate(self.train_dataloader):
+            #image_id is a tuple of 16 items: each item like: 'CXR2949_IM-1348'
+            #images torch.Size([16, 2, 3, 224, 224])
+            #reports_ids torch.Size([16, 60]) various length
+            #reports_masks torch.Size([16, 60]) various length
+            if self.args.flip == True and self.args.dataset_name != 'mimic_cxr': #mimic_cxr only input 1 image, but mimic_cxr_2images will have 2 images
+              print('flipped at a probability of 0.5')
+              if np.random.rand(1) > 0.5:
+                  images = torch.stack((images[:,1], images[:,0]), 1)
+            #stack dim is correct bc:
+            #torch.stack((images[:,0],images[:,1]), 1 ).all()==images.all()
             images, reports_ids, reports_masks = images.to(self.device), reports_ids.to(self.device), reports_masks.to(
                 self.device)
             output = self.model(images, reports_ids, mode='train')
