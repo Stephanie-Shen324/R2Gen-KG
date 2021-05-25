@@ -35,13 +35,8 @@ class IuxrayMultiImageDataset(BaseDataset):
         if self.transform is not None:
             image_1 = self.transform(image_1)
             image_2 = self.transform(image_2)
-        if self.args.flip == 'True':
-            if np.random.rand(1) > 0.5:
-                image = torch.stack((image_2, image_1), 0)
-            else:
-                image = torch.stack((image_1, image_2), 0)
-        else:
-            image = torch.stack((image_1, image_2) , 0)
+       
+        image = torch.stack((image_1, image_2) , 0)
         report_ids = example['ids']
         report_masks = example['mask']
         seq_length = len(report_ids)
@@ -62,13 +57,8 @@ class MimiccxrMultiImageDataset(BaseDataset):
         if self.transform is not None:
             image_1 = self.transform(image_1)
             image_2 = self.transform(image_2)
-        if self.args.flip == 'True':
-            if np.random.rand(1) > 0.5:
-                image = torch.stack((image_2, image_1), 0)
-            else:
-                image = torch.stack((image_1, image_2), 0)
-        else:
-            image = torch.stack((image_1, image_2) , 0)
+        
+        image = torch.stack((image_1, image_2) , 0)
         report_ids = example['ids']
         report_masks = example['mask']
         seq_length = len(report_ids)
