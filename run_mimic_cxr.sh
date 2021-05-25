@@ -7,7 +7,6 @@ python main.py \
 --step_size 1 \
 --gamma 0.8 \
 --pretrained models/mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_e10.pth \
---num_classes 36 \
 --epochs 30 \
 --d_vf 1024 \
 --save_dir results/mimic_cxr \
