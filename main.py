@@ -87,8 +87,9 @@ def parse_agrs():
     
     #Pretrained Language Models
     parser.add_argument('--pretrained_LM', type=str, default = 'none', choices=['none','glove-mimic','biobert','bioalbert'], help = 'The pretrained language model used.')
-    parser.add_argument('--glove_path', type=str, default = 'models/glove_mimic-cxr_train.512.txt.gz', help = 'The path of pretrained language model glove-mimic.')
-     
+    parser.add_argument('--glove_path', type=str, default = 'models/glove_mimic-cxr_train.512.txt.gz', help = 'The path of pretrained language model GloVe-MIMIC.')
+    parser.add_argument('--bioalbert_path', type=str, default = 'models/bioalbert', help = 'The path of pretrained language model BioAlbert.')
+
     # Others
     parser.add_argument('--seed', type=int, default=9233, help='seed')
     parser.add_argument('--resume', type=str, help='whether to resume the training from existing checkpoints.')
