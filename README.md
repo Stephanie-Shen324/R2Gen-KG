@@ -61,6 +61,17 @@ need to change in run_iu_xray.sh:
 --rm_d_model 768 \
 --pretrained_LM 'biobert'
 
+###BioAlbert
+If use BioBert as pretrained Language Models: \
+pip install pytorch-pretrained-bert \
+pip install transformers \
+pip install sentencepiece \
+
+need to change in run_iu_xray.sh: \
+--d_model 128 \
+--rm_d_model 128 \
+--pretrained_LM 'bioalbert'
+
 
 
 ## Citations
