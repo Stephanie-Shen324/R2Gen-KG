@@ -32,7 +32,7 @@ class R2DataLoader(DataLoader):
 
         if self.dataset_name == 'iu_xray':
             self.dataset = IuxrayMultiImageDataset(self.args, self.tokenizer, self.split, transform=self.transform)
-        if self.dataset_name == 'mimic_cxr':
+        elif self.dataset_name == 'mimic_cxr':
             self.dataset = MimiccxrSingleImageDataset(self.args, self.tokenizer, self.split, transform=self.transform)
         else: #mimic_cxr_2images
             self.dataset = MimiccxrMultiImageDataset(self.args, self.tokenizer, self.split, transform=self.transform)
