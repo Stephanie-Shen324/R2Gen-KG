@@ -47,9 +47,9 @@ downloaded = drive.CreateFile({'id':link}) \
 downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_e10.pth') \
 
 NEW(pls use this one) \
-# link = '1_5DhLPDq7bSOgLWLPO7BM-gUySqpiVCK' \
-# downloaded = drive.CreateFile({'id':link}) \
-# downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e10.pth') \
+link = '1_5DhLPDq7bSOgLWLPO7BM-gUySqpiVCK' \
+downloaded = drive.CreateFile({'id':link}) \
+downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e10.pth') \
 
 
 
