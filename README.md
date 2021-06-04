@@ -40,7 +40,16 @@ If 2 images of MIMIC-CXR is inputted, change in run_mimic_cxr.sh: \
 --d_vf 2048 \
 --dataset_name 'mimic_cxr_2images' 
 
+### KG(VSEGCN)
+OLD(not used anymore): \
+link = '1-b6zxemYj6yoTG6rxjMW11lyZiuE0kTV' \
+downloaded = drive.CreateFile({'id':link}) \
+downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_e10.pth') \
 
+NEW(pls use this one) \
+# link = '1_5DhLPDq7bSOgLWLPO7BM-gUySqpiVCK' \
+# downloaded = drive.CreateFile({'id':link}) \
+# downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e10.pth') \
 
 
 
@@ -61,7 +70,7 @@ need to change in run_iu_xray.sh:
 --rm_d_model 768 \
 --pretrained_LM 'biobert'
 
-###BioAlbert
+### BioAlbert
 If use BioBert as pretrained Language Models: \
 pip install pytorch-pretrained-bert \
 pip install transformers \
