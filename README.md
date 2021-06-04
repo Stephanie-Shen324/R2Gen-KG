@@ -53,7 +53,7 @@ downloaded.GetContentFile('mimic_gcnclassifier_v1_ones3_t0v1t2_lr1e-6_24052021_e
 
 
 
-## Pretrained Language Models(only tested on iuxray for now)
+## Pretrained Language Models
 ### None
 default, just nn.Embedding
 
