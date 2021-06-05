@@ -4,6 +4,7 @@ import numpy as np
 
 from modules.visual_extractor import VisualExtractor
 from modules.encoder_decoder import EncoderDecoder
+from modules.dwe_encoder_decoder import DWEEncoderDecoder
 from modules.mlclassifier import GCNClassifier
 
 class R2GenModel(nn.Module):
@@ -12,13 +13,19 @@ class R2GenModel(nn.Module):
         self.args = args
         self.tokenizer = tokenizer
         # self.visual_extractor = VisualExtractor(args)
-        self.encoder_decoder = EncoderDecoder(args, tokenizer)
+        self.feed_mode = args.feed_mode
+        # TODO
+        if args.encoder_mode == 'dualwayencoder':
+            assert self.feed_mode == 'both'  # "DualWayEncoder only accept feed_mode as both"
+            self.encoder_decoder = DWEEncoderDecoder(args, tokenizer)
+        else:
+            self.encoder_decoder = EncoderDecoder(args, tokenizer)
+
         if args.dataset_name == 'iu_xray':
             self.forward = self.forward_iu_xray
         else:
             self.forward = self.forward_mimic_cxr
 
-        #edit
         self.submodel = submodel
         
 
@@ -33,17 +40,7 @@ class R2GenModel(nn.Module):
         # fc_feats torch.Size([16, 2048])
         att_feats, node_feats, fc_feats = self.submodel(images[:,0], images[:,1])
         
-        feed_mode = self.args.feed_mode
-        # feed both CNN features & graph embedded features
-        if feed_mode == 'both':
-            input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
-        # feed only CNN features 
-        elif feed_mode == 'cnn_only':
-            input_feats = att_feats
-        # feed only graph embedded features
-        elif feed_mode == 'gcn_only':
-            input_feats = node_feats
-
+        input_feats = self.feed_mode_controller(att_feats, node_feats)
 
         if mode == 'train':
             output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
@@ -59,17 +56,8 @@ class R2GenModel(nn.Module):
         else:
             #if only one image is inputted.
             att_feats, node_feats, fc_feats = self.submodel(images)
-        
-        feed_mode = self.args.feed_mode
-        # feed both CNN features & graph embedded features
-        if feed_mode == 'both':
-            input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
-        # feed only CNN features 
-        elif feed_mode == 'cnn_only':
-            input_feats = att_feats
-        # feed only graph embedded features
-        elif feed_mode == 'gcn_only':
-            input_feats = node_feats
+
+        input_feats = self.feed_mode_controller(att_feats, node_feats)
      
         if mode == 'train':
             output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
@@ -78,4 +66,19 @@ class R2GenModel(nn.Module):
         else:
             raise ValueError
         return output
+
+    def feed_mode_controller(self, att_feats, node_feats, fc_feats):
+        assert self.feed_mode != None
+
+        if self.feed_mode == 'both':
+            input_feats = torch.cat((att_feats, node_feats), dim = 1) #torch.Size([16, 70, 2048])
+        elif self.feed_mode == 'both_dwe':
+            input_feats = [att_feats, node_feats]
+        # feed only CNN features
+        elif self.feed_mode == 'cnn_only':
+            input_feats = att_feats
+        # feed only graph embedded features
+        elif self.feed_mode == 'gcn_only':
+            input_feats = node_feats
+        return input_feats
 
