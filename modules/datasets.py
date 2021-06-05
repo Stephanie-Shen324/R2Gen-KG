@@ -4,6 +4,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 import numpy as np
+import time
+import copy
 
 class BaseDataset(Dataset):
     def __init__(self, args, tokenizer, split, transform=None):
@@ -17,9 +19,43 @@ class BaseDataset(Dataset):
         self.args = args
 
         self.examples = self.ann[self.split]
+        if args.dataset_name == 'mimic_cxr_2images':
+            self.examples = self.convert_to_multi_images(self.examples)
         for i in range(len(self.examples)):
             self.examples[i]['ids'] = tokenizer(self.examples[i]['report'])[:self.max_seq_length]
             self.examples[i]['mask'] = [1] * len(self.examples[i]['ids'])
+
+    def convert_to_multi_images(self, dataset, print_num=True):
+        t = time.time()
+        n = 0
+        if print_num:
+            print('{} set: Converting to multiple image reports ... '.format(self.split), end='', flush=True)
+        mergedDataset = []
+        total = len(dataset)
+
+        buffer = None
+        for i in range(total):
+            document = dataset[i]
+            id = document['id']
+            image_path = document['image_path'][0]
+            # report = document['report']
+            # split = document['split']
+            study_id = document['study_id']
+            # subject_id = document['subject_id']
+
+            if study_id == buffer:
+                mergedDataset[-1]['image_path'].append(image_path)
+                mergedDataset[-1]['id'].append(id)
+            else:
+                newDocument = copy.deepcopy(document)
+                newDocument['id'] = [newDocument['id']]
+                mergedDataset.append(newDocument)
+                n += 1
+            buffer = study_id
+        if print_num:
+            print('done %d->%d (%.2fs)' % (total, n, time.time() - t), flush=True)
+        return mergedDataset
+
 
     def __len__(self):
         return len(self.examples)
