@@ -84,7 +84,7 @@ def parse_agrs():
    
     #KG
     parser.add_argument('--pretrained', type=str, default='models/gcnclassifier_v2_ones3_t401v2t3_lr1e-6_e80.pth', help = 'path of pretrained CNN & GCN classifier')
-    parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','both_dwe','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
+    parser.add_argument('--feed_mode', type=str, default = 'both', choices = ['both','cnn_only','gcn_only'], help = 'which features as the input of Transformer')
     parser.add_argument('--kg_option', type = str, default = 'rgmg', choices = ['rgmg', 'vsegcn'], help = 'The knowledge graph used for iuxray dataset')
     # parser.add_argument('--kg_adjacency_matrix', type=str, help='Path to load the adjacency matrix') # TODO
 
@@ -96,7 +96,7 @@ def parse_agrs():
     # Others
     parser.add_argument('--seed', type=int, default=9233, help='seed')
     parser.add_argument('--resume', type=str, help='whether to resume the training from existing checkpoints.')
-    parser.add_argument('--flip', type = bool, default = False, help = 'If True, 2 images will randomly switched positions at a probability of 0.5.')
+    parser.add_argument('--flip', type = bool, default = True, help = 'If True, 2 images will randomly switched positions at a probability of 0.5.')
 
     # Encoder Mode
     parser.add_argument('--encoder_mode', type=str, default='normal', choices=['normal', 'dualwayencoder'],

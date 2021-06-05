@@ -47,7 +47,12 @@ class DWETransformer(nn.Module):
 
     def forward(self, cnn_feats, gcn_feats, seq, cnn_masks, gcn_masks, seq_mask):
         # TODO: form a decoder mask?
-        src_mask = torch.cat([cnn_masks, gcn_masks], dim = 1) # TODO: cat dim?
+        """
+        cnn_masks.shape torch.Size([16, 1, 49])
+        gcn_masks.shape torch.Size([16, 1, 21])
+        """
+
+        src_mask = torch.cat([cnn_masks, gcn_masks], dim = -1) # TODO: cat dim?
         return self.decode(self.encode(cnn_feats, gcn_feats, cnn_masks, gcn_masks), src_mask, seq, seq_mask)
 
     def encode(self, cnn_feats, gcn_feats, cnn_masks, gcn_masks):
@@ -89,21 +94,24 @@ class DualWayEncoderLayer(nn.Module):
         self.gcn_d_model = d_model
 
     def forward(self, cnn_feats, gcn_feats, cnn_masks, gcn_masks):
-        # TODO cnnmask, gcnmask
         cnn_feats = self.sublayer[0](cnn_feats, lambda cnn_feats: self.self_attn[0](cnn_feats, cnn_feats, cnn_feats, cnn_masks)) # self_attention, layernorm, dropout, residualconnection,
         cnn_feats = self.sublayer[1](cnn_feats, self.feed_forward[0]) # feed_forward
 
+
         gcn_feats = self.sublayer[2](gcn_feats, lambda gcn_feats: self.self_attn[1](gcn_feats, gcn_feats, gcn_feats, gcn_masks)) # self_attention, layernorm, dropout, residualconnection,
         gcn_feats = self.sublayer[3](gcn_feats, self.feed_forward[1]) # feed_forward
-
+        # print('cnn_feats.shape',cnn_feats.shape)
+        # print('gcn_feats.shape',gcn_feats.shape)
         all_feats = torch.cat([cnn_feats, gcn_feats], dim = 1)
+        src_mask = torch.cat([cnn_masks, gcn_masks], dim = -1)
 
-        cnn_feats = self.sublayer[4](cnn_feats, lambda cnn_feats: self.self_attn[2](cnn_feats, all_feats, all_feats, cnn_masks)) # self_attention, layernorm, dropout, residualconnection,
+        cnn_feats = self.sublayer[4](cnn_feats, lambda cnn_feats: self.self_attn[2](cnn_feats, all_feats, all_feats, src_mask)) # self_attention, layernorm, dropout, residualconnection,
         cnn_feats = self.sublayer[5](cnn_feats, self.feed_forward[2]) # feed_forward
 
-        gcn_feats = self.sublayer[6](gcn_feats, lambda gcn_feats: self.self_attn[3](gcn_feats, all_feats, all_feats, gcn_masks)) # self_attention, layernorm, dropout, residualconnection,
+        gcn_feats = self.sublayer[6](gcn_feats, lambda gcn_feats: self.self_attn[3](gcn_feats, all_feats, all_feats, src_mask)) # self_attention, layernorm, dropout, residualconnection,
         gcn_feats = self.sublayer[7](gcn_feats, self.feed_forward[3]) # feed_forward
-
+        # print('cnn_feats.shape',cnn_feats.shape)
+        # print('gcn_feats.shape',gcn_feats.shape)
         return cnn_feats, gcn_feats
 
 
@@ -342,6 +350,7 @@ class DWEEncoderDecoder(AttModel):
                 DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model),
                 self.num_layers),
             lambda x: x,
+            lambda x: x,
             nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
             rm)
         for p in model.parameters():
@@ -370,9 +379,12 @@ class DWEEncoderDecoder(AttModel):
         return []
 
     def _prepare_feature(self, fc_feats, att_feats, att_masks):
+        cnn_feats, gcn_feats = att_feats[0], att_feats[1]
+        cnn_feats, seq, cnn_masks, seq_mask = self._prepare_feature_forward(cnn_feats, att_masks)
+        gcn_feats, seq, gcn_masks, seq_mask = self._prepare_feature_forward(gcn_feats, att_masks)
+        memory = self.model.encode(cnn_feats, gcn_feats, cnn_masks, gcn_masks)
 
-        att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks)
-        memory = self.model.encode(att_feats, att_masks)
+        att_feats = torch.cat([cnn_feats, gcn_feats], dim = 1)
 
         return fc_feats[..., :1], att_feats[..., :1], memory, att_masks
 
