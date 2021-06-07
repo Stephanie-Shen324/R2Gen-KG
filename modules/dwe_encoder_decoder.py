@@ -341,22 +341,36 @@ class DWEEncoderDecoder(AttModel):
 
     def make_model(self, tgt_vocab, lowrank = False):
         c = copy.deepcopy
-        if lowrank:
-            attn = LowRank(embed_dim = self.d_model, att_heads = self.num_heads)
-        else:
-            attn = MultiHeadedAttention(self.num_heads, self.d_model)
         ff = PositionwiseFeedForward(self.d_model, self.d_ff, self.dropout)
         position = PositionalEncoding(self.d_model, self.dropout)
         rm = RelationalMemory(num_slots=self.rm_num_slots, d_model=self.rm_d_model, num_heads=self.rm_num_heads)
-        model = DWETransformer(
-            DualWayEncoder(DualWayEncoderLayer(self.d_model, c(attn), c(ff), self.dropout), self.num_layers),
-            Decoder(
-                DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model),
-                self.num_layers),
-            lambda x: x,
-            lambda x: x,
-            nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
-            rm)
+
+        if lowrank:
+            attn_e = LowRank(embed_dim = self.d_model, att_heads = self.num_heads)
+            attn_d = LowRank(embed_dim = self.d_model, att_heads = self.num_heads, decoder = True)
+            model = DWETransformer(
+                DualWayEncoder(DualWayEncoderLayer(self.d_model, c(attn_e), c(ff), self.dropout), self.num_layers),
+                Decoder(
+                    DecoderLayer(self.d_model, c(attn_d), c(attn_d), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model),
+                    self.num_layers),
+                lambda x: x,
+                lambda x: x,
+                nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
+                rm)
+        else:
+            attn = MultiHeadedAttention(self.num_heads, self.d_model)
+            model = DWETransformer(
+                DualWayEncoder(DualWayEncoderLayer(self.d_model, c(attn), c(ff), self.dropout), self.num_layers),
+                Decoder(
+                    DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots,
+                                 self.rm_d_model),
+                    self.num_layers),
+                lambda x: x,
+                lambda x: x,
+                nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
+                rm)
+
+
         for p in model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)

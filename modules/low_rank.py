@@ -9,7 +9,7 @@ def clones(module, N):
 
 
 class LowRank(nn.Module):
-    def __init__(self, embed_dim, att_heads, att_mid_dim = [96, 48, 96], att_mid_drop = 0.1):
+    def __init__(self, embed_dim, att_heads, decoder = False, att_mid_dim = [96, 48, 96], att_mid_drop = 0.1):
         super(LowRank, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = att_heads
@@ -23,10 +23,13 @@ class LowRank(nn.Module):
         if act is not None:
             sequential.append(act)
         sequential.append(torch.nn.GroupNorm(self.num_heads, embed_dim))
-        self.in_proj = clones(sequential, 4)  # q, k, v1, v2
+        in_proj = nn.Sequential(*sequential)
+        self.in_proj = clones(in_proj, 4)  # q, k, v1, v2
 
         self.attn_net = SCAtt(att_mid_dim, att_mid_drop)
         self.clear_buffer()
+        self.in_decocder = decoder
+
 
     def apply_to_states(self, fn):
         self.buffer_keys = fn(self.buffer_keys)
@@ -42,13 +45,20 @@ class LowRank(nn.Module):
 
     # query -- batch_size * qdim
     # value -- batch_size * att_num * vdim
+
     def forward(self, query, key, value2, mask, precompute=False):
+        if self.in_decocder:
+            return self.forward_decoder(query, key, value2, mask, precompute)
+        else:
+            return self.forward_encoder(query, key, value2, mask, precompute)
+
+    def forward_encoder(self, query, key, value2, mask, precompute=False):
 
         # q should be the same as v1, but using different projection layer
 
         batch_size = query.size()[0]
-        q = self.in_proj_q(query)
-        v1 = self.in_proj_v1(query)
+        q = self.in_proj[0](query)
+        v1 = self.in_proj[2](query)
 
         q = q.view(batch_size, self.num_heads, self.head_dim)
         v1 = v1.view(batch_size, self.num_heads, self.head_dim)
@@ -56,8 +66,8 @@ class LowRank(nn.Module):
         if precompute == False:
             key = key.view(-1, key.size()[-1])
             value2 = value2.view(-1, value2.size()[-1])
-            k = self.in_proj_k(key)
-            v2 = self.in_proj_v2(value2)
+            k = self.in_proj[1](key)
+            v2 = self.in_proj[3](value2)
             k = k.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
             v2 = v2.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
         else:
@@ -71,14 +81,14 @@ class LowRank(nn.Module):
 
     # query -- batch_size * seq_num * qdim
     # value -- batch_size * att_num * vdim
-    def forward(self, query, key, value2, mask, precompute=False):
+    def forward_decoder(self, query, key, value2, mask, precompute=False):
         batch_size = query.size()[0]
         query_tmp = query.view(-1, query.size()[-1])
         value1 = query.view(-1, query.size()[-1])
         query = query_tmp
 
-        q = self.in_proj_q(query)
-        v1 = self.in_proj_v1(value1)
+        q = self.in_proj[0](query)
+        v1 = self.in_proj[2](value1)
 
         q = q.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
         v1 = v1.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
@@ -86,8 +96,8 @@ class LowRank(nn.Module):
         if precompute == False:
             key = key.view(-1, key.size()[-1])
             value2 = value2.view(-1, value2.size()[-1])
-            k = self.in_proj_k(key)
-            v2 = self.in_proj_v2(value2)
+            k = self.in_proj[1](key)
+            v2 = self.in_proj[3](value2)
             k = k.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
             v2 = v2.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
 
