@@ -76,7 +76,7 @@ class R2GenModel(nn.Module):
         assert self.feed_mode != None
 
         if self.feed_mode == 'both':
-            if self.encoder_mode == 'dualwayencoder':
+            if self.encoder_mode in ['dualwayencoder', 'xdualwayencoder']:
                 input_feats = [att_feats, node_feats]
             else:
                 input_feats = torch.cat((att_feats, node_feats), dim=1)  # torch.Size([16, 70, 2048])

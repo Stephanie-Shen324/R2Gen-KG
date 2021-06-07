@@ -98,7 +98,6 @@ class DualWayEncoderLayer(nn.Module):
         cnn_feats = self.sublayer[0](cnn_feats, lambda cnn_feats: self.self_attn[0](cnn_feats, cnn_feats, cnn_feats, cnn_masks)) # self_attention, layernorm, dropout, residualconnection,
         cnn_feats = self.sublayer[1](cnn_feats, self.feed_forward[0]) # feed_forward
 
-
         gcn_feats = self.sublayer[2](gcn_feats, lambda gcn_feats: self.self_attn[1](gcn_feats, gcn_feats, gcn_feats, gcn_masks)) # self_attention, layernorm, dropout, residualconnection,
         gcn_feats = self.sublayer[3](gcn_feats, self.feed_forward[1]) # feed_forward
         # print('cnn_feats.shape',cnn_feats.shape)
@@ -346,8 +345,9 @@ class DWEEncoderDecoder(AttModel):
         rm = RelationalMemory(num_slots=self.rm_num_slots, d_model=self.rm_d_model, num_heads=self.rm_num_heads)
 
         if lowrank:
+            print('NOTE: implementation of lowrank is WIP and you may see errors ... ')
             attn_e = LowRank(embed_dim = self.d_model, att_heads = self.num_heads)
-            attn_d = LowRank(embed_dim = self.d_model, att_heads = self.num_heads, decoder = True)
+            attn_d = MultiHeadedAttention(self.num_heads, self.d_model)
             model = DWETransformer(
                 DualWayEncoder(DualWayEncoderLayer(self.d_model, c(attn_e), c(ff), self.dropout), self.num_layers),
                 Decoder(

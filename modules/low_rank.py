@@ -8,14 +8,32 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
+class PositionwiseFeedForward(nn.Module):
+    def __init__(self, d_model, d_ff, dropout = 0.1):
+        super(PositionwiseFeedForward, self).__init__()
+        self.w_1 = nn.Linear(d_model, d_ff)
+        self.w_2 = nn.Linear(d_ff, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return self.w_2(self.dropout(F.relu(self.w_1(x))))
+
+def makeMask(input_features):
+    bs, seq, feats = input_features.shape
+    return torch.ones(bs, seq, dtype=torch.long).cuda()  # hardcode to cuda
+
 class LowRank(nn.Module):
-    def __init__(self, embed_dim, att_heads, decoder = False, att_mid_dim = [96, 48, 96], att_mid_drop = 0.1):
+    def __init__(self, embed_dim, att_heads, att_mid_drop = 0.1, att_drop = 0.5, bifeat_drop = 0.3, ff_dropout = 0.5):
         super(LowRank, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = att_heads
         self.head_dim = embed_dim // self.num_heads
         self.scaling = self.head_dim ** -0.5
         output_dim = embed_dim
+
+        mid_dim = int(embed_dim/att_heads)
+        half_mid_dim = int(mid_dim/2)
+        att_mid_dim = [mid_dim, half_mid_dim, mid_dim]
 
         sequential = []
         sequential.append(nn.Linear(embed_dim, output_dim))
@@ -27,8 +45,21 @@ class LowRank(nn.Module):
         self.in_proj = clones(in_proj, 4)  # q, k, v1, v2
 
         self.attn_net = SCAtt(att_mid_dim, att_mid_drop)
+
+        self.dropout = nn.Dropout(att_drop)
+
+        self.bifeat_emb = nn.Sequential(
+            nn.Linear(2 * embed_dim, embed_dim),
+            nn.ReLU(),
+            nn.Dropout(bifeat_drop)
+        )
+
+        self.layer_norm = torch.nn.LayerNorm(embed_dim)
+
+        self.ff_layer = PositionwiseFeedForward(embed_dim, embed_dim, ff_dropout)
+
         self.clear_buffer()
-        self.in_decocder = decoder
+        # self.in_decocder = decoder
 
 
     def apply_to_states(self, fn):
@@ -47,12 +78,25 @@ class LowRank(nn.Module):
     # value -- batch_size * att_num * vdim
 
     def forward(self, query, key, value2, mask, precompute=False):
-        if self.in_decocder:
-            return self.forward_decoder(query, key, value2, mask, precompute)
-        else:
-            return self.forward_encoder(query, key, value2, mask, precompute)
+        # print(mask.shape)
+        mask = mask.squeeze(1)
+        # mask = makeMask(query)
+        # print(mask.shape)
+        # query = (torch.sum(query * mask.squeeze(1).unsqueeze(-1), 1) / torch.sum(mask.squeeze(1).unsqueeze(-1), 1))
+        global_query = (torch.sum(query * mask.unsqueeze(-1), 1) / torch.sum(mask.unsqueeze(-1), 1))
+        # cnn_gx = (torch.sum(cnn_feats * cnn_mask.unsqueeze(-1), 1) / torch.sum(cnn_mask.unsqueeze(-1), 1))
+
+        # if self.in_decocder:
+        #     attn =  self.forward_decoder(query, key, value2, mask, precompute)
+        # else:
+        attn =  self.forward_encoder(global_query, key, value2, mask, precompute)
+        attn = self.dropout(attn)
+        attn_ = torch.cat([attn.unsqueeze(1).expand_as(query), query], dim=-1)
+        attn = self.ff_layer(self.layer_norm(self.bifeat_emb(attn_) + query))
+        return attn
 
     def forward_encoder(self, query, key, value2, mask, precompute=False):
+
 
         # q should be the same as v1, but using different projection layer
 
