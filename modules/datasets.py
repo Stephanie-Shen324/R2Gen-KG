@@ -82,7 +82,7 @@ class IuxrayMultiImageDataset(BaseDataset):
 class MimiccxrMultiImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
-        image_id = example['id']
+        image_id = example['id'] # the id may varies
         image_path = example['image_path']
         folder_path = '/'.join(image_path[0].split('/')[:3])
         all_images_name = os.listdir(os.path.join(self.image_dir,folder_path))
@@ -109,7 +109,7 @@ class MimiccxrMultiImageDataset(BaseDataset):
         sample = (image_id, image, report_ids, report_masks, seq_length)
         return sample
 
-    
+
 class MimiccxrSingleImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]

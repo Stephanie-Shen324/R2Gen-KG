@@ -20,6 +20,9 @@ class R2GenModel(nn.Module):
         if self.encoder_mode == 'dualwayencoder':
             assert self.feed_mode == 'both'  # "DualWayEncoder only accept feed_mode as both"
             self.encoder_decoder = DWEEncoderDecoder(args, tokenizer)
+        elif self.encoder_mode == 'xdualwayencoder':
+            assert self.feed_mode == 'both'
+            self.encoder_decoder = DWEEncoderDecoder(args, tokenizer, lowrank = True)
         else:
             self.encoder_decoder = EncoderDecoder(args, tokenizer)
 

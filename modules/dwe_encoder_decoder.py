@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .att_model import pack_wrapper, AttModel
+from .low_rank import LowRank
 
 
 def clones(module, N):
@@ -338,9 +339,12 @@ class RelationalMemory(nn.Module):
 
 class DWEEncoderDecoder(AttModel):
 
-    def make_model(self, tgt_vocab):
+    def make_model(self, tgt_vocab, lowrank = False):
         c = copy.deepcopy
-        attn = MultiHeadedAttention(self.num_heads, self.d_model)
+        if lowrank:
+            attn = LowRank(embed_dim = self.d_model, att_heads = self.num_heads)
+        else:
+            attn = MultiHeadedAttention(self.num_heads, self.d_model)
         ff = PositionwiseFeedForward(self.d_model, self.d_ff, self.dropout)
         position = PositionalEncoding(self.d_model, self.dropout)
         rm = RelationalMemory(num_slots=self.rm_num_slots, d_model=self.rm_d_model, num_heads=self.rm_num_heads)
@@ -358,7 +362,7 @@ class DWEEncoderDecoder(AttModel):
                 nn.init.xavier_uniform_(p)
         return model
 
-    def __init__(self, args, tokenizer):
+    def __init__(self, args, tokenizer, lowrank = False):
         super(DWEEncoderDecoder, self).__init__(args, tokenizer)
         self.args = args
         self.num_layers = args.num_layers
@@ -369,10 +373,11 @@ class DWEEncoderDecoder(AttModel):
         self.rm_num_slots = args.rm_num_slots
         self.rm_num_heads = args.rm_num_heads
         self.rm_d_model = args.rm_d_model
+        self.lowrank = lowrank
 
         tgt_vocab = self.vocab_size + 1
 
-        self.model = self.make_model(tgt_vocab)
+        self.model = self.make_model(tgt_vocab, lowrank)
         self.logit = nn.Linear(args.d_model, tgt_vocab)
 
     def init_hidden(self, bsz):

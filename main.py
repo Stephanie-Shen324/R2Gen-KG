@@ -99,7 +99,7 @@ def parse_agrs():
     parser.add_argument('--flip', type = bool, default = True, help = 'If True, 2 images will randomly switched positions at a probability of 0.5.')
 
     # Encoder Mode
-    parser.add_argument('--encoder_mode', type=str, default='normal', choices=['normal', 'dualwayencoder'],
+    parser.add_argument('--encoder_mode', type=str, default='normal', choices=['normal', 'dualwayencoder', 'xdualwayencoder'],
                         help='Specify the transformer encoder')
 
     args = parser.parse_args()
