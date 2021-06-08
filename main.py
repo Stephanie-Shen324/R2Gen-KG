@@ -102,6 +102,8 @@ def parse_agrs():
     parser.add_argument('--encoder_mode', type=str, default='normal', choices=['normal', 'dualwayencoder'],
                         help='Specify the transformer encoder')
 
+    parser.add_argument('--training_ratio', type = float, default = '1.0', help ='Select the training ratio. Recommend: 0.001, 0.005, 0.01, 0.1, 0.5 and 1.0')
+
     args = parser.parse_args()
     return args
 

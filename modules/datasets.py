@@ -16,14 +16,32 @@ class BaseDataset(Dataset):
         self.tokenizer = tokenizer
         self.transform = transform
         self.ann = json.loads(open(self.ann_path, 'r').read())
+        self.training_ratio = args.training_ratio
+
+        assert 0.0 <= self.training_ratio <= 1.0
+
         self.args = args
 
         self.examples = self.ann[self.split]
         if args.dataset_name == 'mimic_cxr_2images':
             self.examples = self.convert_to_multi_images(self.examples)
+
+        if self.split == 'train':
+            self.examples = self.apply_training_ratio(self.examples)
+
         for i in range(len(self.examples)):
             self.examples[i]['ids'] = tokenizer(self.examples[i]['report'])[:self.max_seq_length]
             self.examples[i]['mask'] = [1] * len(self.examples[i]['ids'])
+
+    def apply_training_ratio(self, dataset):
+
+            t = time.time()
+            total = len(dataset)
+            print('{} set: applying training_ratio {}  ... '.format(self.training_ratio,self.split), end='', flush=True)
+            select = int(total // (1/self.training_ratio)) + 1
+            dataset = dataset[select]
+            print('done %d->%d (%.2fs)' % (total, select, time.time() - t), flush=True)
+            return dataset
 
     def convert_to_multi_images(self, dataset, print_num=True):
         t = time.time()
