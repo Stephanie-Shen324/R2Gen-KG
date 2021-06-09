@@ -202,7 +202,6 @@ class Trainer(BaseTrainer):
             # reports_ids torch.Size([16, 60]) various length
             # reports_masks torch.Size([16, 60]) various length
             if self.args.flip == True and self.args.dataset_name != 'mimic_cxr':  # mimic_cxr only input 1 image, but mimic_cxr_2images will have 2 images
-                print('Images Randomly Flipped!')
                 if np.random.rand(1) > 0.5:
                     images = torch.stack((images[:, 1], images[:, 0]), 1)
             # stack dim is correct bc:
