@@ -8,5 +8,5 @@ python main.py \
 --save_dir results/iu_xray \
 --step_size 50 \
 --gamma 0.1 \
---pretrained models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e60.pth \
+--pretrained models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e80.pth \
 --seed 9223
