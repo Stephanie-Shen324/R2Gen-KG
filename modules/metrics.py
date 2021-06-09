@@ -1,6 +1,7 @@
 from pycocoevalcap.bleu.bleu import Bleu
 # from pycocoevalcap.meteor import Meteor
 from pycocoevalcap.rouge import Rouge
+from pycocoevalcap.cider.cider import Cider
 
 
 def compute_scores(gts, res):
@@ -16,6 +17,7 @@ def compute_scores(gts, res):
     scorers = [
         (Bleu(4), ["BLEU_1", "BLEU_2", "BLEU_3", "BLEU_4"]),
         # (Meteor(), "METEOR"),
+        (Cider(), "Cider"),
         (Rouge(), "ROUGE_L")
     ]
     eval_res = {}
