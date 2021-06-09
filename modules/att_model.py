@@ -86,13 +86,13 @@ class AttModel(CaptionModel):
         # 'it' contains a word index
         xt = self.embed(it)
 
-        output, state = self.core(xt, fc_feats, att_feats, p_att_feats, state, att_masks)
+        output, state, att_alpha= self.core(xt, fc_feats, att_feats, p_att_feats, state, att_masks)
         if output_logsoftmax:
             logprobs = F.log_softmax(self.logit(output), dim=1)
         else:
             logprobs = self.logit(output)
 
-        return logprobs, state
+        return logprobs, state, att_alpha
 
     def _sample_beam(self, fc_feats, att_feats, att_masks=None, opt={}):
         beam_size = opt.get('beam_size', 10)
@@ -115,7 +115,7 @@ class AttModel(CaptionModel):
 
         # first step, feed bos
         it = fc_feats.new_full([batch_size], self.bos_idx, dtype=torch.long)
-        logprobs, state = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state)
+        logprobs, state, att_alpha = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state)
 
         p_fc_feats, p_att_feats, pp_att_feats, p_att_masks = utils.repeat_tensors(beam_size,
                                                                                   [p_fc_feats, p_att_feats,
@@ -133,7 +133,7 @@ class AttModel(CaptionModel):
                 seq[k, :seq_len] = self.done_beams[k][0]['seq']  # the first beam has highest cumulative score
                 seqLogprobs[k, :seq_len] = self.done_beams[k][0]['logps']
         # return the samples and their log likelihoods
-        return seq, seqLogprobs
+        return seq, seqLogprobs, att_alpha
 
     def _sample(self, fc_feats, att_feats, att_masks=None):
         opt = self.args.__dict__
@@ -169,7 +169,7 @@ class AttModel(CaptionModel):
             if t == 0:  # input <bos>
                 it = fc_feats.new_full([batch_size * sample_n], self.bos_idx, dtype=torch.long)
 
-            logprobs, state = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state,
+            logprobs, state , att_alpha = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state,
                                                       output_logsoftmax=output_logsoftmax)
 
             if decoding_constraint and t > 0:
@@ -223,7 +223,7 @@ class AttModel(CaptionModel):
             if unfinished.sum() == 0:
                 break
 
-        return seq, seqLogprobs
+        return seq, seqLogprobs, att_alpha
 
     def _diverse_sample(self, fc_feats, att_feats, att_masks=None, opt={}):
 
@@ -259,7 +259,7 @@ class AttModel(CaptionModel):
                     else:
                         it = seq[:, t - 1]  # changed
 
-                    logprobs, state_table[divm] = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats,
+                    logprobs, state_table[divm],att_alpha = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats,
                                                                           p_att_masks, state_table[divm])  # changed
                     logprobs = F.log_softmax(logprobs / temperature, dim=-1)
 

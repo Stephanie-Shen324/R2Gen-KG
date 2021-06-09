@@ -57,8 +57,8 @@ class Transformer(nn.Module):
 
     def decode(self, hidden_states, src_mask, tgt, tgt_mask):
         memory = self.rm.init_memory(hidden_states.size(0)).to(hidden_states)
-        memory = self.rm(self.tgt_embed(tgt), memory)
-        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory)
+        memory,alpha = self.rm(self.tgt_embed(tgt), memory)
+        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory),alpha
 
 
 class Encoder(nn.Module):
@@ -186,7 +186,7 @@ class ConditionalLayerNorm(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, h, d_model, dropout=0.1):
+    def __init__(self, h, d_model, dropout=0.1,cross_att=False):
         super(MultiHeadedAttention, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
@@ -194,6 +194,7 @@ class MultiHeadedAttention(nn.Module):
         self.linears = clones(nn.Linear(d_model, d_model), 4)
         self.attn = None
         self.dropout = nn.Dropout(p=dropout)
+        self.is_cross_att=cross_att
 
     def forward(self, query, key, value, mask=None):
         if mask is not None:
@@ -206,7 +207,11 @@ class MultiHeadedAttention(nn.Module):
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
 
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
-        return self.linears[-1](x)
+        if self.is_cross_att:
+            return self.linears[-1](x), self.attn
+        else:
+            return self.linears[-1](x)
+
 
 
 class PositionwiseFeedForward(nn.Module):
@@ -372,7 +377,7 @@ class RelationalMemory(nn.Module):
         self.num_heads = num_heads
         self.d_model = d_model
 
-        self.attn = MultiHeadedAttention(num_heads, d_model)
+        self.attn = MultiHeadedAttention(num_heads, d_model,cross_att=True)
         self.mlp = nn.Sequential(nn.Linear(self.d_model, self.d_model),
                                  nn.ReLU(),
                                  nn.Linear(self.d_model, self.d_model),
@@ -397,7 +402,8 @@ class RelationalMemory(nn.Module):
         q = memory
         k = torch.cat([memory, input.unsqueeze(1)], 1)
         v = torch.cat([memory, input.unsqueeze(1)], 1)
-        next_memory = memory + self.attn(q, k, v)
+        result,alpha=self.attn(q, k, v) #edit
+        next_memory = memory + result
         next_memory = next_memory + self.mlp(next_memory)
 
         gates = self.W(input.unsqueeze(1)) + self.U(torch.tanh(memory))
@@ -409,16 +415,16 @@ class RelationalMemory(nn.Module):
         next_memory = input_gate * torch.tanh(next_memory) + forget_gate * memory
         next_memory = next_memory.reshape(-1, self.num_slots * self.d_model)
 
-        return next_memory
+        return next_memory,alpha
 
     def forward(self, inputs, memory):
         outputs = []
         for i in range(inputs.shape[1]):
-            memory = self.forward_step(inputs[:, i], memory)
+            memory,alpha = self.forward_step(inputs[:, i], memory)
             outputs.append(memory)
         outputs = torch.stack(outputs, dim=1)
 
-        return outputs
+        return outputs,alpha
 
 
 class EncoderDecoder(AttModel):
@@ -493,9 +499,9 @@ class EncoderDecoder(AttModel):
     def _forward(self, fc_feats, att_feats, seq, att_masks=None):
 
         att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks, seq)
-        out = self.model(att_feats, seq, att_masks, seq_mask)
+        out,alpha = self.model(att_feats, seq, att_masks, seq_mask)
         outputs = F.log_softmax(self.logit(out), dim=-1)
-        return outputs
+        return outputs,alpha
 
     def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask):
 
@@ -503,5 +509,5 @@ class EncoderDecoder(AttModel):
             ys = it.unsqueeze(1)
         else:
             ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
-        out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device))
-        return out[:, -1], [ys.unsqueeze(0)]
+        out, alpha  = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device))
+        return out[:, -1], [ys.unsqueeze(0)],alpha
