@@ -17,6 +17,7 @@ from models.biobert_embedding.biobert_embedding.embedding import BiobertEmbeddin
 import transformers
 import os
 import sentencepiece as spm
+import json
 
 
 def clones(module, N):
@@ -49,16 +50,16 @@ class Transformer(nn.Module):
         self.tgt_embed = tgt_embed
         self.rm = rm
 
-    def forward(self, src, tgt, src_mask, tgt_mask):
-        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
+    def forward(self, src, tgt, src_mask, tgt_mask,split='val',epoch=None,save_dir=None):
+        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask, split=split,epoch=epoch,save_dir=save_dir)
 
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
 
-    def decode(self, hidden_states, src_mask, tgt, tgt_mask):
+    def decode(self, hidden_states, src_mask, tgt, tgt_mask,split='val',epoch=None,save_dir=None):
         memory = self.rm.init_memory(hidden_states.size(0)).to(hidden_states)
-        memory,alpha = self.rm(self.tgt_embed(tgt), memory)
-        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory),alpha
+        memory = self.rm(self.tgt_embed(tgt), memory)
+        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory, split=split,epoch=epoch,save_dir=save_dir)
 
 
 class Encoder(nn.Module):
@@ -115,11 +116,11 @@ class Decoder(nn.Module):
         self.layers = clones(layer, N)
         self.norm = LayerNorm(layer.d_model)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory):
-        for layer in self.layers:
-            x = layer(x, hidden_states, src_mask, tgt_mask, memory)
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory,split='val',epoch=None,save_dir=None):
+        # for layer in self.layers:
+        for i,layer in enumerate(self.layers): #edit
+            x = layer(x, hidden_states, src_mask, tgt_mask, memory,layer=i,split=split,epoch=epoch,save_dir=save_dir)
         return self.norm(x)
-
 
 class DecoderLayer(nn.Module):
     def __init__(self, d_model, self_attn, src_attn, feed_forward, dropout, rm_num_slots, rm_d_model):
@@ -130,10 +131,12 @@ class DecoderLayer(nn.Module):
         self.feed_forward = feed_forward
         self.sublayer = clones(ConditionalSublayerConnection(d_model, dropout, rm_num_slots, rm_d_model), 3)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory):
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory,layer,split='val',epoch=None,save_dir=None):
         m = hidden_states
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask), memory)
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask), memory)
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask,split=split,epoch=epoch,save_dir=save_dir), memory)
+        # cross attention, fetch
+        # x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask,is_cross_att=True), memory)  #origin
+        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, is_cross_att=True,layer=layer,split=split,epoch=epoch,save_dir=save_dir), memory)  #edit
         return self.sublayer[2](x, self.feed_forward, memory)
 
 
@@ -144,7 +147,8 @@ class ConditionalSublayerConnection(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, sublayer, memory):
-        return x + self.dropout(sublayer(self.norm(x, memory)))
+            return x + self.dropout(sublayer(self.norm(x, memory)))
+
 
 
 class ConditionalLayerNorm(nn.Module):
@@ -186,7 +190,7 @@ class ConditionalLayerNorm(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, h, d_model, dropout=0.1,cross_att=False):
+    def __init__(self, h, d_model, dropout=0.1):
         super(MultiHeadedAttention, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
@@ -194,9 +198,9 @@ class MultiHeadedAttention(nn.Module):
         self.linears = clones(nn.Linear(d_model, d_model), 4)
         self.attn = None
         self.dropout = nn.Dropout(p=dropout)
-        self.is_cross_att=cross_att
 
-    def forward(self, query, key, value, mask=None):
+
+    def forward(self, query, key, value, mask=None,is_cross_att=False,layer=None,split=None,epoch=None,save_dir=None):
         if mask is not None:
             mask = mask.unsqueeze(1)
         nbatches = query.size(0)
@@ -205,12 +209,12 @@ class MultiHeadedAttention(nn.Module):
              for l, x in zip(self.linears, (query, key, value))]
 
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
-
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
-        if self.is_cross_att:
-            return self.linears[-1](x), self.attn
-        else:
-            return self.linears[-1](x)
+        if is_cross_att and layer==0 and (split=='val' or split=='test') and epoch is not None:
+            print('alpha:',self.attn.shape)
+            save_files(save_dir,self.attn.cpu().detach().numpy().tolist(), epoch, split, 'att_alpha')
+
+        return self.linears[-1](x)
 
 
 
@@ -377,7 +381,7 @@ class RelationalMemory(nn.Module):
         self.num_heads = num_heads
         self.d_model = d_model
 
-        self.attn = MultiHeadedAttention(num_heads, d_model,cross_att=True)
+        self.attn = MultiHeadedAttention(num_heads, d_model)
         self.mlp = nn.Sequential(nn.Linear(self.d_model, self.d_model),
                                  nn.ReLU(),
                                  nn.Linear(self.d_model, self.d_model),
@@ -402,7 +406,7 @@ class RelationalMemory(nn.Module):
         q = memory
         k = torch.cat([memory, input.unsqueeze(1)], 1)
         v = torch.cat([memory, input.unsqueeze(1)], 1)
-        result,alpha=self.attn(q, k, v) #edit
+        result=self.attn(q, k, v)
         next_memory = memory + result
         next_memory = next_memory + self.mlp(next_memory)
 
@@ -415,16 +419,16 @@ class RelationalMemory(nn.Module):
         next_memory = input_gate * torch.tanh(next_memory) + forget_gate * memory
         next_memory = next_memory.reshape(-1, self.num_slots * self.d_model)
 
-        return next_memory,alpha
+        return next_memory
 
     def forward(self, inputs, memory):
         outputs = []
         for i in range(inputs.shape[1]):
-            memory,alpha = self.forward_step(inputs[:, i], memory)
+            memory = self.forward_step(inputs[:, i], memory)
             outputs.append(memory)
         outputs = torch.stack(outputs, dim=1)
 
-        return outputs,alpha
+        return outputs
 
 
 class EncoderDecoder(AttModel):
@@ -496,18 +500,37 @@ class EncoderDecoder(AttModel):
 
         return att_feats, seq, att_masks, seq_mask
 
-    def _forward(self, fc_feats, att_feats, seq, att_masks=None):
+    def _forward(self, fc_feats, att_feats, seq, att_masks=None, split='train',epoch=None,save_dir=None):
 
         att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks, seq)
-        out,alpha = self.model(att_feats, seq, att_masks, seq_mask)
+        out = self.model(att_feats, seq, att_masks, seq_mask, split=split,epoch=epoch,save_dir=save_dir)
         outputs = F.log_softmax(self.logit(out), dim=-1)
-        return outputs,alpha
+        return outputs
 
-    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask):
+    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask, split='val',epoch=None,save_dir=None):
 
         if len(state) == 0:
             ys = it.unsqueeze(1)
         else:
             ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
-        out, alpha  = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device))
-        return out[:, -1], [ys.unsqueeze(0)],alpha
+        out= self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device),split=split,epoch=epoch,save_dir=save_dir)
+        return out[:, -1], [ys.unsqueeze(0)]
+
+
+def save_files(save_dir,content,epoch,split,file_name):
+    file_path=os.path.join(save_dir, '{}_e{}_{}.json'.format(split, epoch,file_name))
+    # os.makedirs(file_path, exist_ok=True)
+    if os.path.exists(file_path):
+        with open(file_path, mode='r') as f:
+            origin_data = json.load(f)
+    else:
+        with open(file_path, mode='w') as f:
+            origin_data = None
+            print('created:',file_path)
+
+    origin_data = [] if origin_data is None else origin_data
+    origin_data.extend(content)
+    print('save file, total {} attention alpha'.format(len(origin_data)))
+    json_refs = json.dumps(origin_data)
+    with open(file_path,'w') as json_file:
+        json_file.write(json_refs)

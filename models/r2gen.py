@@ -38,7 +38,7 @@ class R2GenModel(nn.Module):
         params = sum([np.prod(p.size()) for p in model_parameters])
         return super().__str__() + '\nTrainable parameters: {}'.format(params)
 
-    def forward_iu_xray(self, images, targets=None, mode='train'):
+    def forward_iu_xray(self, images, targets=None, mode='train',split='train',epoch=None,save_dir=None):
         # att_feats torch.Size([16, 49, 2048])
         # node_feats torch.Size([16, 21, 2048])
         # fc_feats torch.Size([16, 2048])
@@ -47,15 +47,15 @@ class R2GenModel(nn.Module):
         input_feats = self.feed_mode_controller(att_feats, node_feats)
 
         if mode == 'train':
-            output,alpha = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
+            output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward',split=split,epoch=epoch,save_dir=save_dir)
         elif mode == 'sample':
-            output, _, alpha= self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            output, _= self.encoder_decoder(fc_feats, input_feats, mode='sample',split=split,epoch=epoch,save_dir=save_dir)
         else:
             raise ValueError
-        return output, alpha
+        return output
 
     # edit
-    def forward_mimic_cxr(self, images, targets=None, mode='train'):
+    def forward_mimic_cxr(self, images, targets=None, mode='train',split='train',epoch=None,save_dir=None):
         if self.args.dataset_name == 'mimic_cxr_2images':
             att_feats, node_feats, fc_feats = self.submodel(images[:, 0], images[:, 1])
         else:
@@ -65,9 +65,9 @@ class R2GenModel(nn.Module):
         input_feats = self.feed_mode_controller(att_feats, node_feats)
 
         if mode == 'train':
-            output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
+            output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward',split=split,epoch=epoch,save_dir=save_dir)
         elif mode == 'sample':
-            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample',split=split,epoch=epoch,save_dir=save_dir)
         else:
             raise ValueError
         return output

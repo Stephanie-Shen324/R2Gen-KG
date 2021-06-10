@@ -64,6 +64,7 @@ def visualize_att(img_path, seq, alphas,  smooth=True):
 
         plt.imshow(image)
         current_alpha = alphas[t, :]
+        current_alpha=np.expand_dims(current_alpha, axis=0)
         if smooth:
             alpha = skimage.transform.pyramid_expand(current_alpha, upscale=24, sigma=8)
         else:
@@ -98,7 +99,7 @@ if __name__ == '__main__':
 
     f = open(args.att_alpha)
     data = json.load(f)
-    att_alpha = np.array(data)[args.num]
+    att_alpha = np.array(data)[args.num][0]
 
     f = open(args.res)
     data = json.load(f)

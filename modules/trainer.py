@@ -194,6 +194,7 @@ class Trainer(BaseTrainer):
 
         train_loss = 0
         self.model.train()
+        count=0
         for batch_idx, (images_id, images, reports_ids, reports_masks) in tqdm(enumerate(self.train_dataloader),
                                                                                desc='Epoch %d - Training' % epoch,
                                                                                unit='it',
@@ -209,13 +210,16 @@ class Trainer(BaseTrainer):
             # torch.stack((images[:,0],images[:,1]), 1 ).all()==images.all()
             images, reports_ids, reports_masks = images.to(self.device), reports_ids.to(self.device), reports_masks.to(
                 self.device)
-            output,alpha = self.model(images, reports_ids, mode='train')
+            output= self.model(images, reports_ids, mode='train',split='train',epoch=epoch,save_dir=self.args.save_dir)
             loss = self.criterion(output, reports_ids, reports_masks)
             train_loss += loss.item()
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
             self.optimizer.step()
+            count += 1
+            if count > 4:
+                break
 
         log = {'train_loss': train_loss / len(self.train_dataloader)}
 
@@ -229,19 +233,20 @@ class Trainer(BaseTrainer):
                                                                                    total=len(self.val_dataloader)):
                 images, reports_ids, reports_masks = images.to(self.device), reports_ids.to(
                     self.device), reports_masks.to(self.device)
-                output ,alpha = self.model(images, mode='sample')
+                print('images_id',images_id)
+                output  = self.model(images, mode='sample',split='val',epoch=epoch,save_dir=self.args.save_dir)
                 reports = self.model.tokenizer.decode_batch(output.cpu().numpy())
                 ground_truths = self.model.tokenizer.decode_batch(reports_ids[:, 1:].cpu().numpy())
                 val_res.extend(reports)
                 val_gts.extend(ground_truths)
-                val_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
+                # val_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
                 val_images_id_list.extend(images_id)
                 count+=1
                 if count>5:
                     break
 
             save_files(self.args.save_dir,val_images_id_list, epoch, 'val', 'images_id')
-            save_files(self.args.save_dir,val_att_alpha, epoch, 'val', 'att_alpha')
+            # save_files(self.args.save_dir,val_att_alpha, epoch, 'val', 'att_alpha')
             save_files(self.args.save_dir,val_res, epoch, 'val', 'res')
             val_met = self.metric_ftns({i: [gt] for i, gt in enumerate(val_gts)},
                                        {i: [re] for i, re in enumerate(val_res)})
@@ -258,18 +263,18 @@ class Trainer(BaseTrainer):
                                                                                    total=len(self.test_dataloader)):
                 images, reports_ids, reports_masks = images.to(self.device), reports_ids.to(
                     self.device), reports_masks.to(self.device)
-                output, alpha = self.model(images, mode='sample')
+                output= self.model(images, mode='sample',split='test',epoch=epoch,save_dir=self.args.save_dir)
                 reports = self.model.tokenizer.decode_batch(output.cpu().numpy())
                 ground_truths = self.model.tokenizer.decode_batch(reports_ids[:, 1:].cpu().numpy())
                 test_res.extend(reports)
                 test_gts.extend(ground_truths)
-                test_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
+                # test_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
                 test_images_id_list.extend(images_id)
                 count += 1
                 if count > 4:
                     break
             save_files(self.args.save_dir,test_images_id_list, epoch, 'test', 'images_id')
-            save_files(self.args.save_dir,test_att_alpha, epoch, 'test', 'att_alpha')
+            # save_files(self.args.save_dir,test_att_alpha, epoch, 'test', 'att_alpha')
             save_files(self.args.save_dir,test_res, epoch, 'test', 'res')
             test_met = self.metric_ftns({i: [gt] for i, gt in enumerate(test_gts)},
                                         {i: [re] for i, re in enumerate(test_res)})
