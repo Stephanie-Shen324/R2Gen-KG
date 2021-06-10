@@ -235,14 +235,12 @@ class Trainer(BaseTrainer):
                 val_res.extend(reports)
                 val_gts.extend(ground_truths)
                 val_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
-                val_images_list.extend(images.cpu().detach().numpy().tolist())
                 val_images_id_list.extend(images_id)
                 count+=1
                 if count>5:
                     break
 
             save_files(self.args.save_dir,val_images_id_list, epoch, 'val', 'images_id')
-            save_files(self.args.save_dir,val_images_list, epoch, 'val', 'images')
             save_files(self.args.save_dir,val_att_alpha, epoch, 'val', 'att_alpha')
             save_files(self.args.save_dir,val_res, epoch, 'val', 'res')
             val_met = self.metric_ftns({i: [gt] for i, gt in enumerate(val_gts)},
@@ -266,13 +264,11 @@ class Trainer(BaseTrainer):
                 test_res.extend(reports)
                 test_gts.extend(ground_truths)
                 test_att_alpha.extend(alpha.cpu().detach().numpy().tolist())
-                test_images_list.extend(images.cpu().detach().numpy().tolist())
                 test_images_id_list.extend(images_id)
                 count += 1
                 if count > 4:
                     break
             save_files(self.args.save_dir,test_images_id_list, epoch, 'test', 'images_id')
-            save_files(self.args.save_dir,test_images_list, epoch, 'test', 'images')
             save_files(self.args.save_dir,test_att_alpha, epoch, 'test', 'att_alpha')
             save_files(self.args.save_dir,test_res, epoch, 'test', 'res')
             test_met = self.metric_ftns({i: [gt] for i, gt in enumerate(test_gts)},
