@@ -99,7 +99,8 @@ class IuxrayMultiImageDataset(BaseDataset):
 class MimiccxrMultiImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
-        image_id = example['id'] # the id may varies
+        # image_id = example['id'] # the id may varies
+        image_id = str(self.examples[idx]['subject_id']) + '_' + str(self.examples[idx]['study_id'])
         image_path = example['image_path']
         folder_path = '/'.join(image_path[0].split('/')[:3])
         all_images_name = os.listdir(os.path.join(self.image_dir,folder_path))
@@ -130,7 +131,8 @@ class MimiccxrMultiImageDataset(BaseDataset):
 class MimiccxrSingleImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
-        image_id = example['id']
+        # image_id = example['id']
+        image_id = str(self.examples[idx]['subject_id']) + '_' + str(self.examples[idx]['study_id'])
         image_path = example['image_path']
         image = Image.open(os.path.join(self.image_dir, image_path[0])).convert('RGB')
         if self.transform is not None:

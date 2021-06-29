@@ -360,7 +360,9 @@ class CaptionModel(nn.Module):
         done_beams = sum(done_beams_table, [])
         return done_beams
 
+
     def sample_next_word(self, logprobs, sample_method, temperature):
+        # issue: entry?  sample_method ?
         if sample_method == 'greedy':
             sampleLogprobs, it = torch.max(logprobs.data, 1)
             it = it.view(-1).long()

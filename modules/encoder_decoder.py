@@ -31,7 +31,7 @@ def attention(query, key, value, mask=None, dropout=None):
     p_attn = F.softmax(scores, dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
-    return torch.matmul(p_attn, value), p_attn
+    return torch.matmul(p_attn, value), p_attn # latter one is the attention score
 
 
 def subsequent_mask(size):
@@ -55,10 +55,11 @@ class Transformer(nn.Module):
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
 
-    def decode(self, hidden_states, src_mask, tgt, tgt_mask):
+    def decode(self, hidden_states, src_mask, tgt, tgt_mask, is_Sampling = False):
+        # decode entry
         memory = self.rm.init_memory(hidden_states.size(0)).to(hidden_states)
         memory = self.rm(self.tgt_embed(tgt), memory)
-        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory)
+        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory, is_Sampling) # two to be returned if sampling
 
 
 class Encoder(nn.Module):
@@ -112,13 +113,22 @@ class LayerNorm(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, layer, N):
         super(Decoder, self).__init__()
+        self.n_layers = N
         self.layers = clones(layer, N)
         self.norm = LayerNorm(layer.d_model)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory):
-        for layer in self.layers:
-            x = layer(x, hidden_states, src_mask, tgt_mask, memory)
-        return self.norm(x)
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, is_Sampling = False):
+        for layer_index, layer in enumerate(self.layers):
+
+            require_attention_score = False
+            if layer_index == self.n_layers and is_Sampling:
+                require_attention_score = True
+
+            x, attention_score = layer(x, hidden_states, src_mask, tgt_mask, memory, require_attention_score)
+        if require_attention_score:
+            return self.norm(x), attention_score
+        else:
+            return self.norm(x)
 
 
 class DecoderLayer(nn.Module):
@@ -130,11 +140,11 @@ class DecoderLayer(nn.Module):
         self.feed_forward = feed_forward
         self.sublayer = clones(ConditionalSublayerConnection(d_model, dropout, rm_num_slots, rm_d_model), 3)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory):
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, require_attention_score = False):
         m = hidden_states
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask), memory)
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask), memory)
-        return self.sublayer[2](x, self.feed_forward, memory)
+        x, attention_score = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, require_attention_score), memory)
+        return self.sublayer[2](x, self.feed_forward, memory), attention_score
 
 
 class ConditionalSublayerConnection(nn.Module):
@@ -192,10 +202,10 @@ class MultiHeadedAttention(nn.Module):
         self.d_k = d_model // h
         self.h = h
         self.linears = clones(nn.Linear(d_model, d_model), 4)
-        self.attn = None
+        self.attn = None # attention scores at current state
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, query, key, value, mask=None):
+    def forward(self, query, key, value, mask=None, require_attention_score = False):
         if mask is not None:
             mask = mask.unsqueeze(1)
         nbatches = query.size(0)
@@ -206,7 +216,10 @@ class MultiHeadedAttention(nn.Module):
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
 
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
-        return self.linears[-1](x)
+        if require_attention_score:
+            return self.linears[-1](x), self.attn.mean(dim = -1) # take the average score
+        else:
+            return self.linears[-1](x)
 
 
 class PositionwiseFeedForward(nn.Module):
@@ -421,7 +434,7 @@ class EncoderDecoder(AttModel):
 
     def make_model(self, tgt_vocab, args):
         c = copy.deepcopy
-        attn = MultiHeadedAttention(self.num_heads, self.d_model)
+        attn = MultiHeadedAttention(self.num_heads, self.d_model) # attention
         ff = PositionwiseFeedForward(self.d_model, self.d_ff, self.dropout)
         position = PositionalEncoding(self.d_model, self.dropout)
         rm = RelationalMemory(num_slots=self.rm_num_slots, d_model=self.rm_d_model, num_heads=self.rm_num_heads)
@@ -493,11 +506,15 @@ class EncoderDecoder(AttModel):
         outputs = F.log_softmax(self.logit(out), dim=-1)
         return outputs
 
-    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask):
-
+    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask, is_Sampling = False):
+        # decode entry 1, and is_Sampling will be set as True
+        # memory : att_feats
         if len(state) == 0:
             ys = it.unsqueeze(1)
         else:
             ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
-        out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device))
-        return out[:, -1], [ys.unsqueeze(0)]
+        out, attention_score = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device), is_Sampling)
+        if is_Sampling:
+            return out[:, -1], [ys.unsqueeze(0)], attention_score
+        else:
+            return out[:, -1], [ys.unsqueeze(0)]

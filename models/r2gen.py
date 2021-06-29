@@ -48,11 +48,12 @@ class R2GenModel(nn.Module):
 
         if mode == 'train':
             output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
+            return output
         elif mode == 'sample':
-            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            output, _, attention_scores= self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            return output,  attention_scores.tolist()
         else:
             raise ValueError
-        return output
 
     # edit
     def forward_mimic_cxr(self, images, targets=None, mode='train'):
@@ -66,11 +67,12 @@ class R2GenModel(nn.Module):
 
         if mode == 'train':
             output = self.encoder_decoder(fc_feats, input_feats, targets, mode='forward')
+            return output
         elif mode == 'sample':
-            output, _ = self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            output, _, attention_scores= self.encoder_decoder(fc_feats, input_feats, mode='sample')
+            return output, attention_scores.tolist()
         else:
             raise ValueError
-        return output
 
     def feed_mode_controller(self, att_feats, node_feats):
         assert self.feed_mode != None
