@@ -45,6 +45,7 @@ def parse_agrs():
     parser.add_argument('--pad_idx', type=int, default=0, help='the index of <pad>.')
     parser.add_argument('--use_bn', type=int, default=0, help='whether to use batch normalization.')
     parser.add_argument('--drop_prob_lm', type=float, default=0.5, help='the dropout rate of the output layer.')
+
     # for Relational Memory
     parser.add_argument('--rm_num_slots', type=int, default=3, help='the number of memory slots.')
     parser.add_argument('--rm_num_heads', type=int, default=8, help='the numebr of heads in rm.')

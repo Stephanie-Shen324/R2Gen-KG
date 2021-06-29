@@ -95,6 +95,7 @@ class AttModel(CaptionModel):
         return logprobs, state
 
     def _sample_beam(self, fc_feats, att_feats, att_masks=None, opt={}):
+        # beam search entry
         beam_size = opt.get('beam_size', 10)
         group_size = opt.get('group_size', 1)
         sample_n = opt.get('sample_n', 10)
@@ -136,6 +137,7 @@ class AttModel(CaptionModel):
         return seq, seqLogprobs
 
     def _sample(self, fc_feats, att_feats, att_masks=None):
+        # decode stage entry
         opt = self.args.__dict__
         sample_method = opt.get('sample_method', 'greedy')
         beam_size = opt.get('beam_size', 1)
@@ -146,6 +148,7 @@ class AttModel(CaptionModel):
         decoding_constraint = opt.get('decoding_constraint', 0)
         block_trigrams = opt.get('block_trigrams', 0)
         if beam_size > 1 and sample_method in ['greedy', 'beam_search']:
+            # decode stage entry
             return self._sample_beam(fc_feats, att_feats, att_masks, opt)
         if group_size > 1:
             return self._diverse_sample(fc_feats, att_feats, att_masks, opt)

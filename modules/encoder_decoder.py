@@ -316,10 +316,6 @@ class PretrainedEmbeddings:
       # embeddings = torch.tensor(embeddings)
       return embeddings
 
-
-     
-     
-
 class Embeddings(nn.Module):
     def __init__(self, d_model, vocab, args, R2GenTokenizer):
         super(Embeddings, self).__init__()
