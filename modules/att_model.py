@@ -88,7 +88,7 @@ class AttModel(CaptionModel):
         xt = self.embed(it)
         # decode entry 1
         if is_Sampling:
-            output, state, attention_score = self.core(xt, fc_feats, att_feats, p_att_feats, state, att_masks, is_Sampling = True)
+            output, state, attention_score = self.core(xt, fc_feats, att_feats, p_att_feats, state, att_masks, is_Sampling)
         else:
             output, state = self.core(xt, fc_feats, att_feats, p_att_feats, state, att_masks, is_Sampling)
 
@@ -186,7 +186,8 @@ class AttModel(CaptionModel):
             # greedy decoder entry
             logprobs, state, attention_score = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state,
                                                       output_logsoftmax=output_logsoftmax, is_Sampling = True) # set as true
-            attention_scores.append(attention_score)
+
+            attention_scores.append(attention_score.unsqueeze(-1))
             if decoding_constraint and t > 0:
                 tmp = logprobs.new_zeros(logprobs.size())
                 tmp.scatter_(1, seq[:, t - 1].data.unsqueeze(1), float('-inf'))
@@ -240,6 +241,8 @@ class AttModel(CaptionModel):
             if unfinished.sum() == 0:
                 break
         attention_scores = torch.cat(attention_scores, dim = -1)
+        # print(attention_scores.shape) # (batch_size = 16, num_heads = 8, num_seq = 61)
+        # raise Exception('lol')
         return seq, seqLogprobs, attention_scores
 
     def _diverse_sample(self, fc_feats, att_feats, att_masks=None, opt={}):

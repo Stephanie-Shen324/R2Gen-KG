@@ -10,8 +10,8 @@ python main.py \
 --gamma 0.1 \
 --pretrained models/gcnclassifier_v2_ones3_t0v1t2_lr1e-6_e80.pth \
 --seed 3247671 \
---monitor_metric 'BLEU_1' \
+--monitor_metric 'Cider' \
 --rm_num_slots 9 \
---num_workers 2 \
+--num_workers 4 \
 --num_layers 6 \
 --flip ''

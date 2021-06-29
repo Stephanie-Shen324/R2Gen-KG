@@ -183,6 +183,8 @@ class BaseTrainer(object):
 
 
 def save_files(save_dir,content,epoch,split,file_name):
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     file_path=os.path.join(save_dir, '{}_e{}_{}.json'.format(split, epoch,file_name))
     json_refs = json.dumps(content)
     with open(file_path,'w') as json_file:
@@ -206,6 +208,7 @@ class Trainer(BaseTrainer):
                                                                                desc='Epoch %d - Training' % epoch,
                                                                                unit='it',
                                                                                total=len(self.train_dataloader)):
+
             # image_id is a tuple of 16 items: each item like: 'CXR2949_IM-1348'
             # images torch.Size([16, 2, 3, 224, 224])
             # reports_ids torch.Size([16, 60]) various length
@@ -244,7 +247,10 @@ class Trainer(BaseTrainer):
                 val_gts.extend(ground_truths)
 
                 for image_index, images_id in enumerate(images_ids):
-                    gen_store[images_id] = [reports[image_index], attention_scores[image_index]]
+                    candidate_attention_scores = attention_scores[image_index][:][1:len(reports[image_index].split())+1] # (num_heads, num_seq)
+                    selected = np.argmax([max(candidate) - min(candidate) for candidate in candidate_attention_scores])
+                    # print(images_id, '\n', reports[image_index], '\n', attention_scores[image_index][1:len(reports[image_index])+1])
+                    gen_store[images_id] = [reports[image_index], candidate_attention_scores[selected]]
 
             val_met = self.metric_ftns({i: [gt] for i, gt in enumerate(val_gts)},
                                        {i: [re] for i, re in enumerate(val_res)})

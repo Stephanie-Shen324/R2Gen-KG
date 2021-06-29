@@ -31,7 +31,7 @@ def attention(query, key, value, mask=None, dropout=None):
     p_attn = F.softmax(scores, dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
-    return torch.matmul(p_attn, value), p_attn # latter one is the attention score
+    return torch.matmul(p_attn, value), p_attn  # latter one is the attention score
 
 
 def subsequent_mask(size):
@@ -50,16 +50,17 @@ class Transformer(nn.Module):
         self.rm = rm
 
     def forward(self, src, tgt, src_mask, tgt_mask):
-        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
+        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask, is_Sampling=False)
 
     def encode(self, src, src_mask):
         return self.encoder(self.src_embed(src), src_mask)
 
-    def decode(self, hidden_states, src_mask, tgt, tgt_mask, is_Sampling = False):
+    def decode(self, hidden_states, src_mask, tgt, tgt_mask, is_Sampling=False):
         # decode entry
         memory = self.rm.init_memory(hidden_states.size(0)).to(hidden_states)
         memory = self.rm(self.tgt_embed(tgt), memory)
-        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory, is_Sampling) # two to be returned if sampling
+        return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory,
+                            is_Sampling)  # two to be returned if sampling
 
 
 class Encoder(nn.Module):
@@ -117,16 +118,22 @@ class Decoder(nn.Module):
         self.layers = clones(layer, N)
         self.norm = LayerNorm(layer.d_model)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, is_Sampling = False):
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, is_Sampling=False):
+        require_attention_score = False
         for layer_index, layer in enumerate(self.layers):
 
-            require_attention_score = False
-            if layer_index == self.n_layers and is_Sampling:
+            if layer_index == self.n_layers - 1 and is_Sampling:
+                # print('require_attention_score')
                 require_attention_score = True
 
-            x, attention_score = layer(x, hidden_states, src_mask, tgt_mask, memory, require_attention_score)
-        if require_attention_score:
-            return self.norm(x), attention_score
+            x = layer(x, hidden_states, src_mask, tgt_mask, memory, is_Sampling)
+            if not require_attention_score and is_Sampling:
+                # print('try require_attention_score')
+                x = x[0]
+        if is_Sampling:
+            # print('require_attention_score')
+            temp_x, attention_score = x[0], x[1]
+            return self.norm(temp_x), attention_score
         else:
             return self.norm(x)
 
@@ -140,11 +147,16 @@ class DecoderLayer(nn.Module):
         self.feed_forward = feed_forward
         self.sublayer = clones(ConditionalSublayerConnection(d_model, dropout, rm_num_slots, rm_d_model), 3)
 
-    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, require_attention_score = False):
+    def forward(self, x, hidden_states, src_mask, tgt_mask, memory, is_Sampling):
         m = hidden_states
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask), memory)
-        x, attention_score = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, require_attention_score), memory)
-        return self.sublayer[2](x, self.feed_forward, memory), attention_score
+        if is_Sampling:
+            x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, is_Sampling), memory, is_Sampling)
+            temp_x, attention_score = x[0], x[1]
+            return self.sublayer[2](temp_x, self.feed_forward, memory), attention_score
+        else:
+            x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask), memory)
+            return self.sublayer[2](x, self.feed_forward, memory)
 
 
 class ConditionalSublayerConnection(nn.Module):
@@ -153,8 +165,12 @@ class ConditionalSublayerConnection(nn.Module):
         self.norm = ConditionalLayerNorm(d_model, rm_num_slots, rm_d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, sublayer, memory):
-        return x + self.dropout(sublayer(self.norm(x, memory)))
+    def forward(self, x, sublayer, memory, require_attention_score=False):
+        if require_attention_score:
+            x, attention_score = sublayer(self.norm(x, memory))
+            return x + self.dropout(x), attention_score
+        else:
+            return x + self.dropout(sublayer(self.norm(x, memory)))
 
 
 class ConditionalLayerNorm(nn.Module):
@@ -202,10 +218,10 @@ class MultiHeadedAttention(nn.Module):
         self.d_k = d_model // h
         self.h = h
         self.linears = clones(nn.Linear(d_model, d_model), 4)
-        self.attn = None # attention scores at current state
+        self.attn = None  # attention scores at current state
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, query, key, value, mask=None, require_attention_score = False):
+    def forward(self, query, key, value, mask=None, require_attention_score=False):
         if mask is not None:
             mask = mask.unsqueeze(1)
         nbatches = query.size(0)
@@ -217,7 +233,7 @@ class MultiHeadedAttention(nn.Module):
 
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
         if require_attention_score:
-            return self.linears[-1](x), self.attn.mean(dim = -1) # take the average score
+            return self.linears[-1](x), self.attn.mean(dim=(-2, -1))  # take the average score
         else:
             return self.linears[-1](x)
 
@@ -232,7 +248,8 @@ class PositionwiseFeedForward(nn.Module):
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
 
-#newly implemented
+
+# newly implemented
 class PretrainedEmbeddings:
     GLOVE_UNK = '<unk>'
     INDEX_PAD = 0
@@ -256,91 +273,91 @@ class PretrainedEmbeddings:
             else:
                 f = open(args.glove_path, encoding='utf-8')
 
-            header = f.readline().split(' ') # print result ['4299', '512\n']
+            header = f.readline().split(' ')  # print result ['4299', '512\n']
             num = int(header[0])
             # dim = int(header[1])
             dim = args.d_model
-            embeddings = np.zeros((len(word_idxs)+1, dim), dtype='float32')
+            embeddings = np.zeros((len(word_idxs) + 1, dim), dtype='float32')
 
-            #random initialise embedding for eos, pad, bos
+            # random initialise embedding for eos, pad, bos
             for idx in (args.bos_idx, args.eos_idx, args.pad_idx):
                 embeddings[idx] = np.random.uniform(low=-1, high=1, size=dim)
 
-            count = 0 # record how many words in R2Gen's vocab has pretrained embedding in glove-mimic
-            for line in f: 
-                entry = line.strip().split(' ') #list of length 513, first element is token
+            count = 0  # record how many words in R2Gen's vocab has pretrained embedding in glove-mimic
+            for line in f:
+                entry = line.strip().split(' ')  # list of length 513, first element is token
                 embed = np.array(list(map(lambda v: float(v), entry[1:])), dtype='float32')
-                
-                if entry[0] in word_idxs:
-                    embeddings[word_idxs[entry[0]]] = embed 
-                    count+=1
 
-            for i in range(len(word_idxs)+1):
-                if embeddings[i].all() == np.zeros((1,dim)).all():
-                  # print(R2GenTokenizer.idx2token[i])
-                  embeddings[i] = embeddings[word_idxs['<unk>']]
+                if entry[0] in word_idxs:
+                    embeddings[word_idxs[entry[0]]] = embed
+                    count += 1
+
+            for i in range(len(word_idxs) + 1):
+                if embeddings[i].all() == np.zeros((1, dim)).all():
+                    # print(R2GenTokenizer.idx2token[i])
+                    embeddings[i] = embeddings[word_idxs['<unk>']]
             embeddings = torch.tensor(embeddings)
         finally:
             if f is not None:
                 f.close()
         print('There are', count, 'words in R2Gen\'s vocab that has pretrained embedding in glove-mimic.')
-        return embeddings, word_idxs #embeddings shape 4303,512
-    
+        return embeddings, word_idxs  # embeddings shape 4303,512
+
     @classmethod
     def biobert_load_embeddings(cls, args, R2GenTokenizer):
         biobert = BiobertEmbedding()
         biobert.word_vector('well-defined')
 
-
         word2idx = R2GenTokenizer.token2idx
         dim = args.d_model
-        embeddings = np.zeros((len(word2idx)+1, dim), dtype='float32')
+        embeddings = np.zeros((len(word2idx) + 1, dim), dtype='float32')
         for idx in R2GenTokenizer.idx2token:
-          word_embed = biobert.word_vector(R2GenTokenizer.idx2token[idx])
-          # if len(word_embed) == 1:
-          #   embeddings[idx] = word_embed[0]
-          # if len(word_embed) > 1:
-          #   embeddings[idx] = sum(word_embed)/len(word_embed)
-          embeddings[idx] = sum(word_embed)/len(word_embed)
+            word_embed = biobert.word_vector(R2GenTokenizer.idx2token[idx])
+            # if len(word_embed) == 1:
+            #   embeddings[idx] = word_embed[0]
+            # if len(word_embed) > 1:
+            #   embeddings[idx] = sum(word_embed)/len(word_embed)
+            embeddings[idx] = sum(word_embed) / len(word_embed)
         embeddings = torch.tensor(embeddings)
         return embeddings
 
-    @classmethod    
-    def bioalbert_load_embeddings(cls,args, R2GenTokenizer):
-      model_path = os.path.join(args.bioalbert_path,'bioalbert_base_pubmed_pmc.bin')
-      config_path = os.path.join(args.bioalbert_path,'albert_config.json')
-      bioalbert_model = transformers.AlbertForPreTraining.from_pretrained(model_path,config =config_path)
-      sp = spm.SentencePieceProcessor()
-      vocab_path = os.path.join(args.bioalbert_path,'30k-clean.model')
-      sp.load(vocab_path)
-      # #this vocab conversion is for bioalbert not R2Gen
-      # word_to_idx ={}
-      # idx_to_word = {}
-      # for idx in range(sp.get_piece_size()):
-      #   token = sp.id_to_piece(idx).strip('▁')
-      #   word_to_idx[token] = idx
-      #   idx_to_word[idx] = token
+    @classmethod
+    def bioalbert_load_embeddings(cls, args, R2GenTokenizer):
+        model_path = os.path.join(args.bioalbert_path, 'bioalbert_base_pubmed_pmc.bin')
+        config_path = os.path.join(args.bioalbert_path, 'albert_config.json')
+        bioalbert_model = transformers.AlbertForPreTraining.from_pretrained(model_path, config=config_path)
+        sp = spm.SentencePieceProcessor()
+        vocab_path = os.path.join(args.bioalbert_path, '30k-clean.model')
+        sp.load(vocab_path)
+        # #this vocab conversion is for bioalbert not R2Gen
+        # word_to_idx ={}
+        # idx_to_word = {}
+        # for idx in range(sp.get_piece_size()):
+        #   token = sp.id_to_piece(idx).strip('▁')
+        #   word_to_idx[token] = idx
+        #   idx_to_word[idx] = token
 
-      dim = args.d_model
-      embeddings = torch.zeros((len(R2GenTokenizer.idx2token)+1, dim))
-      for idx,token in R2GenTokenizer.idx2token.items():
-        embeds = bioalbert_model.albert.embeddings.word_embeddings((torch.tensor(sp.encode(token)))) #shape x,128
-        embeddings[idx] = torch.mean(embeds,dim = 0)[0] #shape tensor[128]
-      # embeddings = torch.tensor(embeddings)
-      return embeddings
+        dim = args.d_model
+        embeddings = torch.zeros((len(R2GenTokenizer.idx2token) + 1, dim))
+        for idx, token in R2GenTokenizer.idx2token.items():
+            embeds = bioalbert_model.albert.embeddings.word_embeddings((torch.tensor(sp.encode(token))))  # shape x,128
+            embeddings[idx] = torch.mean(embeds, dim=0)[0]  # shape tensor[128]
+        # embeddings = torch.tensor(embeddings)
+        return embeddings
+
 
 class Embeddings(nn.Module):
     def __init__(self, d_model, vocab, args, R2GenTokenizer):
         super(Embeddings, self).__init__()
         self.lut = nn.Embedding(vocab, d_model)
         if args.pretrained_LM == 'glove-mimic':
-            pretrained_embeddings, _ = PretrainedEmbeddings.glove_load_embeddings(args,R2GenTokenizer)
+            pretrained_embeddings, _ = PretrainedEmbeddings.glove_load_embeddings(args, R2GenTokenizer)
             self.lut.weight.data.copy_(pretrained_embeddings)
-            
+
         elif args.pretrained_LM == 'biobert':
             pretrained_embeddings = PretrainedEmbeddings.biobert_load_embeddings(args, R2GenTokenizer)
             self.lut.weight.data.copy_(pretrained_embeddings)
-            
+
         elif args.pretrained_LM == 'none':
             pass
         elif args.pretrained_LM == 'bioalbert':
@@ -434,7 +451,7 @@ class EncoderDecoder(AttModel):
 
     def make_model(self, tgt_vocab, args):
         c = copy.deepcopy
-        attn = MultiHeadedAttention(self.num_heads, self.d_model) # attention
+        attn = MultiHeadedAttention(self.num_heads, self.d_model)  # attention
         ff = PositionwiseFeedForward(self.d_model, self.d_ff, self.dropout)
         position = PositionalEncoding(self.d_model, self.dropout)
         rm = RelationalMemory(num_slots=self.rm_num_slots, d_model=self.rm_d_model, num_heads=self.rm_num_heads)
@@ -506,15 +523,18 @@ class EncoderDecoder(AttModel):
         outputs = F.log_softmax(self.logit(out), dim=-1)
         return outputs
 
-    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask, is_Sampling = False):
+    def core(self, it, fc_feats_ph, att_feats_ph, memory, state, mask, is_Sampling=False):
         # decode entry 1, and is_Sampling will be set as True
         # memory : att_feats
         if len(state) == 0:
             ys = it.unsqueeze(1)
         else:
             ys = torch.cat([state[0][0], it.unsqueeze(1)], dim=1)
-        out, attention_score = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device), is_Sampling)
         if is_Sampling:
+            # print('is_Sampling at EncoderDecoder.code')
+            out, attention_score = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device),
+                                                     is_Sampling)
             return out[:, -1], [ys.unsqueeze(0)], attention_score
         else:
+            out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device), is_Sampling)
             return out[:, -1], [ys.unsqueeze(0)]
