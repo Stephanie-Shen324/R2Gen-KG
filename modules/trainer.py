@@ -259,6 +259,7 @@ class Trainer(BaseTrainer):
 
         self.model.eval()
         with torch.no_grad():
+            gen_store = {}
             test_gts, test_res = [], []
 
             for batch_idx, (images_ids, images, reports_ids, reports_masks) in tqdm(enumerate(self.test_dataloader),
@@ -275,9 +276,16 @@ class Trainer(BaseTrainer):
                 test_gts.extend(ground_truths)
             # print(test_gts)
             # print(test_res)
+                for image_index, images_id in enumerate(images_ids):
+                    candidate_attention_scores = attention_scores[image_index][:][
+                                                 1:len(reports[image_index].split()) + 1]  # (num_heads, num_seq)
+                    selected = np.argmax([max(candidate) - min(candidate) for candidate in candidate_attention_scores])
+                    # print(images_id, '\n', reports[image_index], '\n', attention_scores[image_index][1:len(reports[image_index])+1])
+                    gen_store[images_id] = [reports[image_index], candidate_attention_scores[selected]]
             test_met = self.metric_ftns({i: [gt] for i, gt in enumerate(test_gts)},
                                         {i: [re] for i, re in enumerate(test_res)})
             log.update(**{'test_' + k: v for k, v in test_met.items()})
+            save_files(self.args.record_dir, gen_store, epoch, 'val', 'gen')
 
         self.lr_scheduler.step()
 
