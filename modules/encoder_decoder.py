@@ -31,7 +31,7 @@ def attention(query, key, value, mask=None, dropout=None):
     p_attn = F.softmax(scores, dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
-    return torch.matmul(p_attn, value), p_attn  # latter one is the attention score
+    return torch.matmul(p_attn, value), scores
 
 
 def subsequent_mask(size):
@@ -233,7 +233,7 @@ class MultiHeadedAttention(nn.Module):
 
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
         if require_attention_score:
-            return self.linears[-1](x), self.attn.mean(dim=(-2, -1))  # take the average score
+            return self.linears[-1](x), torch.sigmoid(self.attn).mean(dim=-1)  # take the average score
         else:
             return self.linears[-1](x)
 

@@ -247,14 +247,14 @@ class Trainer(BaseTrainer):
                 val_gts.extend(ground_truths)
 
                 for image_index, images_id in enumerate(images_ids):
+                    candidate_attention_scores = attention_scores[image_index, : , 1:len(reports[image_index].split())+1]
                     try:
-                        candidate_attention_scores = attention_scores[image_index][:][
-                                                     1:len(reports[image_index].split()) + 1]  # (num_heads, num_seq)
-                        selected = np.argmax([max(candidate) - min(candidate) for candidate in candidate_attention_scores])
-                        # print(images_id, '\n', reports[image_index], '\n', attention_scores[image_index][1:len(reports[image_index])+1])
-                        gen_store[images_id] = [reports[image_index], candidate_attention_scores[selected]]
+                        selected = torch.argmax(torch.Tensor([[torch.std(candidate)  for candidate in candidate_attention_scores]]))
+                        candidate_attention_score = candidate_attention_scores[selected].tolist()
+                      # print(candidate_attention_score)
                     except:
-                        print('error when generating report', images_id)
+                        candidate_attention_score = [0]
+                    gen_store[images_id] = [reports[image_index], candidate_attention_score]
 
             val_met = self.metric_ftns({i: [gt] for i, gt in enumerate(val_gts)},
                                        {i: [re] for i, re in enumerate(val_res)})
@@ -278,17 +278,17 @@ class Trainer(BaseTrainer):
                 ground_truths = self.model.tokenizer.decode_batch(reports_ids[:, 1:].cpu().numpy())
                 test_res.extend(reports)
                 test_gts.extend(ground_truths)
-            # print(test_gts)
-            # print(test_res)
+
                 for image_index, images_id in enumerate(images_ids):
+                    candidate_attention_scores = attention_scores[image_index, : , 1:len(reports[image_index].split())+1]
                     try:
-                        candidate_attention_scores = attention_scores[image_index][:][
-                                                     1:len(reports[image_index].split()) + 1]  # (num_heads, num_seq)
-                        selected = np.argmax([max(candidate) - min(candidate) for candidate in candidate_attention_scores])
-                        # print(images_id, '\n', reports[image_index], '\n', attention_scores[image_index][1:len(reports[image_index])+1])
-                        gen_store[images_id] = [reports[image_index], candidate_attention_scores[selected]]
+                        selected = torch.argmax(torch.Tensor([[torch.std(candidate)  for candidate in candidate_attention_scores]]))
+                        candidate_attention_score = candidate_attention_scores[selected].tolist()
+                      # print(candidate_attention_score)
                     except:
-                        print('error when generating report', images_id)
+                        candidate_attention_score = [0]
+                    gen_store[images_id] = [reports[image_index], candidate_attention_score]
+
             test_met = self.metric_ftns({i: [gt] for i, gt in enumerate(test_gts)},
                                         {i: [re] for i, re in enumerate(test_res)})
             log.update(**{'test_' + k: v for k, v in test_met.items()})
