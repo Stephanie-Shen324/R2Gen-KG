@@ -177,17 +177,17 @@ class AttModel(CaptionModel):
 
         seq = fc_feats.new_full((batch_size * sample_n, self.max_seq_length), self.pad_idx, dtype=torch.long)
         seqLogprobs = fc_feats.new_zeros(batch_size * sample_n, self.max_seq_length, self.vocab_size + 1)
-        attention_scores = []
+
 
         for t in range(self.max_seq_length + 1): # for each token to be generated
             if t == 0:  # input <bos>
                 it = fc_feats.new_full([batch_size * sample_n], self.bos_idx, dtype=torch.long)
 
             # greedy decoder entry
-            logprobs, state, attention_score = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state,
+            logprobs, state, attention_scores = self.get_logprobs_state(it, p_fc_feats, p_att_feats, pp_att_feats, p_att_masks, state,
                                                       output_logsoftmax=output_logsoftmax, is_Sampling = True) # set as true
 
-            attention_scores.append(attention_score.unsqueeze(-1))
+
             if decoding_constraint and t > 0:
                 tmp = logprobs.new_zeros(logprobs.size())
                 tmp.scatter_(1, seq[:, t - 1].data.unsqueeze(1), float('-inf'))
@@ -240,9 +240,9 @@ class AttModel(CaptionModel):
             # quit loop if all sequences have finished
             if unfinished.sum() == 0:
                 break
-        attention_scores = torch.cat(attention_scores, dim = -1)
+
         # print(attention_scores.shape) # (batch_size = 16, num_heads = 8, num_seq = 61)
-        # raise Exception('lol')
+
         return seq, seqLogprobs, attention_scores
 
     def _diverse_sample(self, fc_feats, att_feats, att_masks=None, opt={}):
