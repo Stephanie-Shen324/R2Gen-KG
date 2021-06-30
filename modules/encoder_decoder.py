@@ -151,9 +151,8 @@ class DecoderLayer(nn.Module):
         m = hidden_states
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask), memory)
         if is_Sampling:
-            x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, is_Sampling), memory, is_Sampling)
-            temp_x, attention_score = x[0], x[1]
-            return self.sublayer[2](temp_x, self.feed_forward, memory), attention_score
+            x, attention_score = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask, is_Sampling), memory, is_Sampling)
+            return self.sublayer[2](x, self.feed_forward, memory), attention_score
         else:
             x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask), memory)
             return self.sublayer[2](x, self.feed_forward, memory)
@@ -165,10 +164,10 @@ class ConditionalSublayerConnection(nn.Module):
         self.norm = ConditionalLayerNorm(d_model, rm_num_slots, rm_d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, sublayer, memory, require_attention_score=False):
-        if require_attention_score:
-            x, attention_score = sublayer(self.norm(x, memory))
-            return x + self.dropout(x), attention_score
+    def forward(self, x, sublayer, memory, is_Sampling=False):
+        if is_Sampling:
+            temp_x, attention_score = sublayer(self.norm(x, memory))
+            return x + self.dropout(temp_x), attention_score
         else:
             return x + self.dropout(sublayer(self.norm(x, memory)))
 
