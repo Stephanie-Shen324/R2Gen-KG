@@ -535,5 +535,5 @@ class EncoderDecoder(AttModel):
                                                      is_Sampling)
             return out[:, -1], [ys.unsqueeze(0)], attention_score
         else:
-            out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device), is_Sampling)
+            out = self.model.decode(memory, mask, ys, subsequent_mask(ys.size(1)).to(memory.device))
             return out[:, -1], [ys.unsqueeze(0)]
