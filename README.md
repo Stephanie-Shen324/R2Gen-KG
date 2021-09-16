@@ -1,7 +1,9 @@
 # README
 
-R2Gen is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020. \
-KG and pretrained GCN comes from RGMG and VSEGCN
+R2Gen is from the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020. \
+KG implementation comes from RGMG and VSEGCN. Different training method is adopted.
+
+The work here incorporates the two implementation.
 
 
 ## Run on IU X-Ray
